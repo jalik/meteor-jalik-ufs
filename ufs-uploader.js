@@ -66,17 +66,15 @@ UploadFS.Uploader = function (options) {
      * Aborts the current transfer
      */
     self.abort = function () {
+        uploading.set(false);
+        complete.set(false);
+        loaded.set(0);
+        fileId = null;
+        offset = 0;
+        tries = 0;
+
         // Remove the file from database
-        store.getCollection().remove(fileId, function (err, result) {
-            if (!err && result) {
-                uploading.set(false);
-                complete.set(false);
-                loaded.set(0);
-                fileId = null;
-                offset = 0;
-                tries = 0;
-            }
-        });
+        store.getCollection().remove(fileId);
     };
 
     /**
@@ -137,7 +135,8 @@ UploadFS.Uploader = function (options) {
                             Meteor.call('ufsWrite', chunk, fileId, store.getName(), function (err, length) {
                                 if (err || !length) {
                                     // Retry until max tries is reach
-                                    if (tries < self.maxTries) {
+                                    // But don't retry if these errors occur
+                                    if (tries < self.maxTries && !_.contains([400, 404], err.error)) {
                                         tries += 1;
 
                                         // Wait 1 sec before retrying

@@ -11,6 +11,7 @@ UploadFS.Store = function (options) {
         collection: null,
         filter: null,
         name: null,
+        onRead: null,
         transform: null
     }, options);
 
@@ -32,9 +33,15 @@ UploadFS.Store = function (options) {
     if (UploadFS.getStore(options.name)) {
         throw new TypeError('name already exists');
     }
+    if (options.onRead && typeof options.onRead !== 'function') {
+        throw new TypeError('onRead is not a function');
+    }
     if (options.transform && typeof options.transform !== 'function') {
         throw new TypeError('transform is not a function');
     }
+
+    // Public attributes
+    self.onRead = options.onRead;
 
     // Private attributes
     var collection = options.collection;
@@ -85,7 +92,6 @@ UploadFS.Store = function (options) {
         };
     }
 
-    // Add file information before insertion
     collection.before.insert(function (userId, file) {
         file.complete = false;
         file.uploading = true;
@@ -94,11 +100,16 @@ UploadFS.Store = function (options) {
         file.userId = userId;
     });
 
-    // Automatically delete file from store
-    // when the file is removed from the collection
     collection.before.remove(function (userId, file) {
-        if (Meteor.isServer && file.complete) {
-            self.delete(file._id);
+        if (Meteor.isServer) {
+            // Delete the physical file in the store
+            if (file.complete) {
+                self.delete(file._id);
+            }
+            // Delete the temporary file if uploading
+            if (file.uploading || !file.complete) {
+                fs.unlink(UploadFS.getTempFilePath(file._id));
+            }
         }
     });
 
@@ -117,7 +128,17 @@ UploadFS.Store = function (options) {
  * @param fileId
  */
 UploadFS.Store.prototype.getFileURL = function (fileId) {
-    throw new Error('getFileURL is not implemented');
+    var file = this.getCollection().findOne(fileId, {
+        fields: {extension: 1}
+    });
+    return file && this.getURL() + '/' + fileId + '.' + file.extension;
+};
+
+/**
+ * Returns the store URL
+ */
+UploadFS.Store.prototype.getURL = function () {
+    return Meteor.absoluteUrl(UploadFS.config.storesPath + '/' + this.getName());
 };
 
 if (Meteor.isServer) {
@@ -144,5 +165,14 @@ if (Meteor.isServer) {
      */
     UploadFS.Store.prototype.getWriteStream = function (fileId) {
         throw new Error('getWriteStream is not implemented');
+    };
+
+    /**
+     * Called when a file is read from the store
+     * @param fileId
+     * @param request
+     * @param response
+     */
+    UploadFS.Store.prototype.onRead = function (fileId, request, response) {
     };
 }

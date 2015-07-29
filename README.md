@@ -73,7 +73,7 @@ Meteor.photosStore = new UploadFS.store.Local({
 });
 ```
 
-### Transforming
+### Transforming files
 
 If you need to modify the file before it is saved to the store, you have to use the **transform** option.
 ```js
@@ -104,6 +104,37 @@ Meteor.photos.allow({
     },
     remove: function (userId, doc) {
         return userId === doc.userId;
+    }
+});
+```
+
+### Configuring endpoint
+
+Uploaded files will be accessible via a default URL, you can change it, but don't change after having uploaded files because you will break the URL of previous stored files.
+
+```js
+// This path will be appended to the site URL, be sure to not put a "/" as first character
+// for example, a PNG file with the _id 12345 in the "photos" store will be available via this URL :
+// http://www.yourdomain.com/my/custom/path/photos/12345.png
+UploadFS.config.storesPath = 'my/custom/path';
+```
+
+### Security
+
+When returning the file for a HTTP request on the endpoint, you can do some checks to decide whether or not the file should be sent to the client.
+This is done by defining the **onRead()** method on the store.
+
+```js
+Meteor.photosStore = new UploadFS.store.Local({
+    collection: Meteor.photos,
+    name: 'photos',
+    path: '/uploads/photos',
+    onRead: function (fileId, request, response) {
+        if (isPrivateFile(fileId, request)) {
+            throw new Meteor.Error(403, 'the file is private');
+            // Because this code is executed before reading and returning the file,
+            // throwing an exception will simply stops returning the file to the client.
+        }
     }
 });
 ```
