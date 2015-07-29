@@ -191,7 +191,7 @@ Template.upload.events({
             
             // Reactive method to get upload progress
             Tracker.autorun(function() {
-                console.log(upload.getLoaded() + '% completed');
+                console.log((upload.getProgress() * 100) + '% completed');
             });
             
             // Reactive method to get upload status
