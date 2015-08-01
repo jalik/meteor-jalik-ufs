@@ -12,12 +12,19 @@ UploadFS.Store = function (options) {
         filter: null,
         name: null,
         onRead: null,
-        transform: null
+        transformRead: null,
+        transformWrite: null
     }, options);
 
     // Check instance
     if (!(self instanceof UploadFS.Store)) {
         throw new Error('UploadFS.Store is not an instance');
+    }
+
+    // todo remove migration warning
+    if (options.transform) {
+        console.warn('use transformWrite instead of transform, it will be removed in the next releases');
+        options.transformWrite = options.transform;
     }
 
     // Check options
@@ -36,8 +43,11 @@ UploadFS.Store = function (options) {
     if (options.onRead && typeof options.onRead !== 'function') {
         throw new TypeError('onRead is not a function');
     }
-    if (options.transform && typeof options.transform !== 'function') {
-        throw new TypeError('transform is not a function');
+    if (options.transformRead && typeof options.transformRead !== 'function') {
+        throw new TypeError('transformRead is not a function');
+    }
+    if (options.transformWrite && typeof options.transformWrite !== 'function') {
+        throw new TypeError('transformWrite is not a function');
     }
 
     // Public attributes
@@ -47,7 +57,8 @@ UploadFS.Store = function (options) {
     var collection = options.collection;
     var filter = options.filter;
     var name = options.name;
-    var transform = options.transform;
+    var transformRead = options.transformRead;
+    var transformWrite = options.transformWrite;
 
     // Add the store to the list
     UploadFS.getStores()[name] = self;
@@ -78,16 +89,30 @@ UploadFS.Store = function (options) {
 
     if (Meteor.isServer) {
         /**
-         * Transforms the file on the fly
-         * @param readStream
-         * @param writeStream
+         * Transforms the file on reading
+         * @param from
+         * @param to
          * @param fileId
          */
-        self.transform = function (readStream, writeStream, fileId) {
-            if (typeof transform === 'function') {
-                transform.call(self, readStream, writeStream, fileId);
+        self.transformRead = function (from, to, fileId) {
+            if (typeof transformRead === 'function') {
+                transformRead.call(self, from, to, fileId);
             } else {
-                readStream.pipe(writeStream);
+                from.pipe(to);
+            }
+        };
+
+        /**
+         * Transforms the file on writing
+         * @param from
+         * @param to
+         * @param fileId
+         */
+        self.transformWrite = function (from, to, fileId) {
+            if (typeof transformWrite === 'function') {
+                transformWrite.call(self, from, to, fileId);
+            } else {
+                from.pipe(to);
             }
         };
     }
@@ -154,16 +179,18 @@ if (Meteor.isServer) {
     /**
      * Returns the file read stream
      * @param fileId
+     * @param file
      */
-    UploadFS.Store.prototype.getReadStream = function (fileId) {
+    UploadFS.Store.prototype.getReadStream = function (fileId, file) {
         throw new Error('getReadStream is not implemented');
     };
 
     /**
      * Returns the file write stream
      * @param fileId
+     * @param file
      */
-    UploadFS.Store.prototype.getWriteStream = function (fileId) {
+    UploadFS.Store.prototype.getWriteStream = function (fileId, file) {
         throw new Error('getWriteStream is not implemented');
     };
 

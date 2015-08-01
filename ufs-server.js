@@ -33,7 +33,8 @@ if (Meteor.isServer) {
 
             var fut = new Future();
             var tmpFile = UploadFS.getTempFilePath(fileId);
-            var writeStream = store.getWriteStream(fileId);
+            var file = store.getCollection().findOne(fileId);
+            var writeStream = store.getWriteStream(fileId, file);
             var readStream = fs.createReadStream(tmpFile, {
                 flags: 'r',
                 encoding: null,
@@ -73,7 +74,7 @@ if (Meteor.isServer) {
             }));
 
             // Execute transformation
-            store.transform(readStream, writeStream, fileId);
+            store.transformWrite(readStream, writeStream, fileId);
 
             return fut.wait();
         },
@@ -163,7 +164,12 @@ if (Meteor.isServer) {
 
             try {
                 // Get file stream
-                var rs = store.getReadStream(fileId);
+                var rs = store.getReadStream(fileId, file);
+
+                // Execute transformation
+                // todo add request query params to transformRead, this way its possible to return alternative version of the file
+                //store.transformRead(rs, writeStream, fileId);
+
                 var accept = req.headers['accept-encoding'] || '';
 
                 // Compress data if supported by the client
