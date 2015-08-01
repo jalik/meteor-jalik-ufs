@@ -93,10 +93,13 @@ UploadFS.Store = function (options) {
          * @param from
          * @param to
          * @param fileId
+         * @param file
          */
-        self.transformRead = function (from, to, fileId) {
+        self.transformRead = function (from, to, fileId, file) {
+            Meteor._sleepForMs(UploadFS.config.simulateReadDelay);
+
             if (typeof transformRead === 'function') {
-                transformRead.call(self, from, to, fileId);
+                transformRead.call(self, from, to, fileId, file);
             } else {
                 from.pipe(to);
             }
@@ -107,10 +110,13 @@ UploadFS.Store = function (options) {
          * @param from
          * @param to
          * @param fileId
+         * @param file
          */
-        self.transformWrite = function (from, to, fileId) {
+        self.transformWrite = function (from, to, fileId, file) {
+            Meteor._sleepForMs(UploadFS.config.simulateWriteDelay);
+
             if (typeof transformWrite === 'function') {
-                transformWrite.call(self, from, to, fileId);
+                transformWrite.call(self, from, to, fileId, file);
             } else {
                 from.pipe(to);
             }

@@ -2,7 +2,9 @@ if (Meteor.isServer) {
     fs = Npm.require('fs');
     Future = Npm.require('fibers/future');
     mkdirp = Npm.require('mkdirp');
+    stream = Npm.require('stream');
     zlib = Npm.require('zlib');
+
 
     // Create the temporary upload dir
     Meteor.startup(function () {
@@ -74,7 +76,7 @@ if (Meteor.isServer) {
             }));
 
             // Execute transformation
-            store.transformWrite(readStream, writeStream, fileId);
+            store.transformWrite(readStream, writeStream, fileId, file);
 
             return fut.wait();
         },
@@ -166,9 +168,12 @@ if (Meteor.isServer) {
                 // Get file stream
                 var rs = store.getReadStream(fileId, file);
 
+                // Create temp stream form transformation
+                var ws = new stream.PassThrough();
+
                 // Execute transformation
-                // todo add request query params to transformRead, this way its possible to return alternative version of the file
-                //store.transformRead(rs, writeStream, fileId);
+                // todo add request query params to transformRead to allow returning alternative version of the file (eg: ?thumb=256x256)
+                store.transformRead(rs, ws, fileId, file);
 
                 var accept = req.headers['accept-encoding'] || '';
 
@@ -178,18 +183,18 @@ if (Meteor.isServer) {
                         'Content-Encoding': 'deflate',
                         'Content-Type': file.type
                     });
-                    rs.pipe(zlib.createDeflate()).pipe(res);
+                    ws.pipe(zlib.createDeflate()).pipe(res);
 
                 } else if (accept.match(/\bgzip\b/)) {
                     res.writeHead(200, {
                         'Content-Encoding': 'gzip',
                         'Content-Type': file.type
                     });
-                    rs.pipe(zlib.createGzip()).pipe(res);
+                    ws.pipe(zlib.createGzip()).pipe(res);
 
                 } else {
                     res.writeHead(200, {});
-                    rs.pipe(res);
+                    ws.pipe(res);
                 }
             } catch (err) {
                 console.error('Cannot read file ' + fileId);

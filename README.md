@@ -39,6 +39,7 @@ I'll use the `UploadFS.store.Local` store for the following examples.
 
 A store is the place where your files are saved.
 Let say you have a **photos** collection :
+
 ```js
 Meteor.photos = new Mongo.Collection('photos');
 ```
@@ -46,6 +47,7 @@ Meteor.photos = new Mongo.Collection('photos');
 You need to create the store that will communicate with the above **collection**.
 And don't forget to give a **name**, it's the only way for the uploader to know
 on which store it should save a file.
+
 ```js
 Meteor.photosStore = new UploadFS.store.Local({
     collection: Meteor.photos,
@@ -59,6 +61,7 @@ Meteor.photosStore = new UploadFS.store.Local({
 You can pass an `UploadFS.Filter` to a store to define restrictions on file uploads.
 Filter is tested before inserting a file in the collection and uses `Meteor.deny()`.
 If the file does not match the filter, it won't be inserted and so not be uploaded.
+
 ```js
 Meteor.photosStore = new UploadFS.store.Local({
     collection: Meteor.photos,
@@ -76,15 +79,21 @@ Meteor.photosStore = new UploadFS.store.Local({
 ### Transforming files
 
 If you need to modify the file before it is saved to the store, you have to use the **transform** option.
+
 ```js
 Meteor.photosStore = new UploadFS.store.Local({
     collection: Meteor.photos,
     name: 'photos',
     path: '/uploads/photos',
-    transform: function (readStream, writeStream, fileId) {
+    // Transform file when reading
+    transformRead: function (from, to, fileId, file) {
+        from.pipe(to);
+    }
+    // Transform file when writing
+    transformWrite: function (from, to, fileId, file) {
         var im = Npm.require('imagemagick-stream');
         var resize = im().resize('200x200').quality(90);
-        readStream.pipe(resize).pipe(writeStream);
+        from.pipe(resize).pipe(to);
     }
 });
 ```
@@ -108,15 +117,25 @@ Meteor.photos.allow({
 });
 ```
 
-### Configuring endpoint
+### Configuration
 
-Uploaded files will be accessible via a default URL, you can change it, but don't change after having uploaded files because you will break the URL of previous stored files.
+You can access and modify settings via `UploadFS.config`.
 
 ```js
+// Activate read simulation to slow file reading
+UploadFS.conig.simulateReadDelay = 1000; // 1 sec
+
+// Activate read simulation to slow file writing
+UploadFS.conig.simulateWriteDelay = 2000; // 1 sec
+
 // This path will be appended to the site URL, be sure to not put a "/" as first character
 // for example, a PNG file with the _id 12345 in the "photos" store will be available via this URL :
-// http://www.yourdomain.com/my/custom/path/photos/12345.png
-UploadFS.config.storesPath = 'my/custom/path';
+// http://www.yourdomain.com/uploads/photos/12345.png
+UploadFS.config.storesPath = 'uploads';
+
+// Set the temporary directory where uploading files will be saved
+// before sent to the store.
+UploadFS.config.tmpDir = '/tmp/uploads';
 ```
 
 ### Security
@@ -144,6 +163,7 @@ Meteor.photosStore = new UploadFS.store.Local({
 When the store on the server is configured, you can upload a file.
 
 Here is the template to upload a file :
+
 ```html
 <template name="upload">
     <input type="file">
@@ -151,6 +171,7 @@ Here is the template to upload a file :
 ```
 
 And there the code to upload the file :
+
 ```js
 Template.upload.events({
     'change input[type=file]': function (ev) {
@@ -218,6 +239,7 @@ After that, if everything went good, you have you file saved to the store and in
 You can get the file as usual and display it using the url attribute of the document.
 
 Here is the template to display a list of photos :
+
 ```html
 <template name="photos">
     <div>
@@ -233,6 +255,7 @@ Here is the template to display a list of photos :
 ```
 
 And there the code to load the file :
+
 ```js
 Template.photos.helpers({
     photos: function() {
