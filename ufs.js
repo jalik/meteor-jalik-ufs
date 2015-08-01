@@ -1,18 +1,9 @@
 var stores = {};
 
 UploadFS = {
-    config: {
-        /**
-         * The path where to put uploads before saving to a store
-         * @type {string}
-         */
-        tmpDir: '/tmp/ufs',
-        /**
-         * The path of the URL where files are accessible
-         * @type {string}
-         */
-        storesPath: 'ufs'
-    },
+    /**
+     * Contains all stores
+     */
     store: {},
     /**
      * Returns the temporary file path
