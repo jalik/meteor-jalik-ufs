@@ -67,7 +67,7 @@ if (Meteor.isServer) {
                     $set: {
                         complete: true,
                         uploading: false,
-                        uploadedAt: new Date(), // todo use UTC date
+                        uploadedAt: new Date(),
                         url: store.getFileURL(fileId)
                     }
                 });

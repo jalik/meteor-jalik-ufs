@@ -6,6 +6,7 @@
 UploadFS.Config = function (options) {
     // Set default options
     options = _.extend({
+        https: false,
         simulateReadDelay: 0,
         simulateWriteDelay: 0,
         storesPath: 'ufs',
@@ -13,6 +14,9 @@ UploadFS.Config = function (options) {
     }, options);
 
     // Check options
+    if (typeof options.https !== 'boolean') {
+        throw new TypeError('https is not a function');
+    }
     if (typeof options.simulateReadDelay !== 'number') {
         throw new Meteor.Error('simulateReadDelay is not a number');
     }
@@ -27,6 +31,7 @@ UploadFS.Config = function (options) {
     }
 
     // Public attributes
+    this.https = options.https;
     this.simulateReadDelay = parseInt(options.simulateReadDelay);
     this.simulateWriteDelay = parseInt(options.simulateWriteDelay);
     this.storesPath = options.storesPath;

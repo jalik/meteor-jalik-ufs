@@ -169,7 +169,9 @@ UploadFS.Store.prototype.getFileURL = function (fileId) {
  * Returns the store URL
  */
 UploadFS.Store.prototype.getURL = function () {
-    return Meteor.absoluteUrl(UploadFS.config.storesPath + '/' + this.getName());
+    return Meteor.absoluteUrl(UploadFS.config.storesPath + '/' + this.getName(), {
+        secure: UploadFS.config.https
+    });
 };
 
 if (Meteor.isServer) {
