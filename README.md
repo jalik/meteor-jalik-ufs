@@ -19,12 +19,9 @@ meteor remove jalik:ufs
 ### Plugins
 
 As the package is modular, you can add support for custom stores.
-For now, only `UploadFS.store.Local` is available.
 
-To install file system storage :
-```
-meteor add jalik:ufs-local
-```
+* [UploadFS.store.Local](https://github.com/jalik/jalik-ufs-local)
+* [UploadFS.store.GridFS](https://github.com/jalik/jalik-ufs-gridfs)
 
 ### Introduction
 
