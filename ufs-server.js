@@ -1,4 +1,5 @@
 if (Meteor.isServer) {
+    domain = Npm.require('domain');
     fs = Npm.require('fs');
     Future = Npm.require('fibers/future');
     mkdirp = Npm.require('mkdirp');
@@ -125,6 +126,14 @@ if (Meteor.isServer) {
         }
     });
 
+    // Create domain to handle errors
+    // and possibly avoid server crashes.
+    var d = domain.create();
+
+    d.on('error', function (err) {
+        console.error(err);
+    });
+
     // Listen HTTP requests to serve files
     WebApp.connectHandlers.use(function (req, res, next) {
         // Quick check to see if request should be catch
@@ -161,10 +170,10 @@ if (Meteor.isServer) {
 
             // Execute callback to do some check (eg. security check)
             if (typeof store.onRead === 'function') {
-                store.onRead.call(store, fileId, req, res);
+                store.onRead.call(store, fileId, file, req, res);
             }
 
-            try {
+            d.run(function () {
                 // Get file stream
                 var rs = store.getReadStream(fileId, file);
 
@@ -196,10 +205,7 @@ if (Meteor.isServer) {
                     res.writeHead(200, {});
                     ws.pipe(res);
                 }
-            } catch (err) {
-                console.error('Cannot read file ' + fileId);
-                throw err;
-            }
+            });
 
         } else {
             next();
