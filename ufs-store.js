@@ -99,12 +99,13 @@ UploadFS.Store = function (options) {
          * @param to
          * @param fileId
          * @param file
+         * @param request
          */
-        self.transformRead = function (from, to, fileId, file) {
+        self.transformRead = function (from, to, fileId, file, request) {
             Meteor._sleepForMs(UploadFS.config.simulateReadDelay);
 
             if (typeof transformRead === 'function') {
-                transformRead.call(self, from, to, fileId, file);
+                transformRead.call(self, from, to, fileId, file, request);
             } else {
                 from.pipe(to);
             }

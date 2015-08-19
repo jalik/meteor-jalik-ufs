@@ -186,8 +186,7 @@ if (Meteor.isServer) {
                 var ws = new stream.PassThrough();
 
                 // Execute transformation
-                // todo add request query params to transformRead to allow returning alternative version of the file (eg: ?thumb=256x256)
-                store.transformRead(rs, ws, fileId, file);
+                store.transformRead(rs, ws, fileId, file, req);
 
                 var accept = req.headers['accept-encoding'] || '';
 
