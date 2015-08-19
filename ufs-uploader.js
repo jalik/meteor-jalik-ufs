@@ -78,6 +78,13 @@ UploadFS.Uploader = function (options) {
     };
 
     /**
+     * Returns the file
+     */
+    self.getFile = function () {
+        return file;
+    };
+
+    /**
      * Returns the loaded bits count
      * @return {number}
      */
@@ -156,13 +163,14 @@ UploadFS.Uploader = function (options) {
                             });
                         } else {
                             // Finish the upload by telling the store the upload is complete
-                            Meteor.call('ufsComplete', fileId, store.getName(), function (err) {
+                            Meteor.call('ufsComplete', fileId, store.getName(), function (err, uploadedFile) {
                                 if (err) {
                                     self.abort();
-                                } else {
+                                } else if (uploadedFile) {
                                     uploading.set(false);
                                     complete.set(true);
-                                    self.onComplete.call(self, fileId);
+                                    file = uploadedFile;
+                                    self.onComplete.call(self, uploadedFile);
                                 }
                             });
                         }
@@ -179,6 +187,7 @@ UploadFS.Uploader = function (options) {
                         self.onError.call(self, err);
                     } else {
                         fileId = uploadId;
+                        file._id = fileId;
                         upload();
                     }
                 });
@@ -205,9 +214,9 @@ UploadFS.Uploader = function (options) {
 
 /**
  * Called when the file upload is complete
- * @param fileId
+ * @param file
  */
-UploadFS.Uploader.prototype.onComplete = function (fileId) {
+UploadFS.Uploader.prototype.onComplete = function (file) {
 };
 
 /**

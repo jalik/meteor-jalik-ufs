@@ -62,14 +62,20 @@ if (Meteor.isServer) {
                     fs.unlink(tmpFile);
                 }, 500);
 
+                // Set file attribute
+                file.complete = true;
+                file.uploading = false;
+                file.uploadedAt = new Date();
+                file.url = store.getFileURL(fileId);
+
                 // Sets the file URL when file transfer is complete,
                 // this way, the image will loads entirely.
                 store.getCollection().update(fileId, {
                     $set: {
                         complete: true,
                         uploading: false,
-                        uploadedAt: new Date(),
-                        url: store.getFileURL(fileId)
+                        uploadedAt: file.uploadedAt,
+                        url: file.url
                     }
                 });
 
@@ -78,7 +84,7 @@ if (Meteor.isServer) {
                     store.onFinishUpload(file);
                 }
 
-                fut.return(fileId);
+                fut.return(file);
             }));
 
             // Execute transformation
