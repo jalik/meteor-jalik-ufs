@@ -49,6 +49,13 @@ UploadFS.Store = function (options) {
     if (options.transformWrite && typeof options.transformWrite !== 'function') {
         throw new TypeError('transformWrite is not a function');
     }
+    if (options.onFinishUpload && typeof options.onFinishUpload !== 'function') {
+        throw new TypeError('onFinishUpload is not a function');
+    }
+
+    if (options.onFinishUpload) {
+        self.onFinishUpload = options.onFinishUpload;
+    }
 
     // Public attributes
     self.onRead = options.onRead;

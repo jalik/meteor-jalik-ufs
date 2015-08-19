@@ -73,7 +73,13 @@ if (Meteor.isServer) {
                     }
                 });
 
-                fut.return(true);
+                if (typeof store.onFinishUpload == 'function') {
+                    file = store.getCollection().findOne(fileId)
+                    store.onFinishUpload(file);
+                    return fut.return(file);
+                }
+
+                fut.return(fileId);
             }));
 
             // Execute transformation
