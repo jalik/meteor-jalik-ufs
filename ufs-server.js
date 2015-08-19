@@ -78,7 +78,7 @@ if (Meteor.isServer) {
                     store.onFinishUpload(file);
                 }
 
-                fut.return(true);
+                fut.return(fileId);
             }));
 
             // Execute transformation
