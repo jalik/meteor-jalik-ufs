@@ -168,7 +168,11 @@ UploadFS.Store.prototype.getFileURL = function (fileId) {
     var file = this.getCollection().findOne(fileId, {
         fields: {extension: 1}
     });
-    return file && this.getURL() + '/' + fileId + '.' + file.extension;
+    var url = file && this.getURL() + '/' + fileId;
+    if (file.extension && file.extension !== '') {
+        url = url + '.' + file.extension
+    }
+    return url;
 };
 
 /**
