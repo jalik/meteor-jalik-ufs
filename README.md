@@ -83,7 +83,7 @@ Meteor.photosStore = new UploadFS.store.Local({
     name: 'photos',
     path: '/uploads/photos',
     // Transform file when reading
-    transformRead: function (from, to, fileId, file) {
+    transformRead: function (from, to, fileId, file, request) {
         from.pipe(to);
     }
     // Transform file when writing
@@ -145,12 +145,29 @@ Meteor.photosStore = new UploadFS.store.Local({
     collection: Meteor.photos,
     name: 'photos',
     path: '/uploads/photos',
+    // Called before reading file to check if we can return it (for example)
     onRead: function (fileId, request, response) {
         if (isPrivateFile(fileId, request)) {
-            throw new Meteor.Error(403, 'the file is private');
+            throw new Meteor.Error(403, 'this file is private');
             // Because this code is executed before reading and returning the file,
             // throwing an exception will simply stops returning the file to the client.
         }
+    }
+});
+```
+
+### Server events
+
+Some events are triggered to allow you to do something at the right moment on server side.
+
+```js
+Meteor.photosStore = new UploadFS.store.Local({
+    collection: Meteor.photos,
+    name: 'photos',
+    path: '/uploads/photos',
+    // Called when file has been uploaded
+    onFinishUpload: function (file) {
+        console.log(file.name + 'has been uploaded');
     }
 });
 ```
@@ -202,8 +219,8 @@ Template.upload.events({
                     console.error(err);
                 },
                 // The complete callback
-                onComplete: function () {
-                    console.log('transfer complete');
+                onComplete: function (file) {
+                    console.log(file.name + ' has been uploaded');
                 }
             });
             
