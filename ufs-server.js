@@ -190,6 +190,11 @@ if (Meteor.isServer) {
 
                 // Create temp stream form transformation
                 var ws = new stream.PassThrough();
+                
+                // Force ending of stream
+                ws.on('close', function() {
+                    ws.emit('end');
+                });
 
                 // Execute transformation
                 store.transformRead(rs, ws, fileId, file, req);
@@ -212,7 +217,9 @@ if (Meteor.isServer) {
                     ws.pipe(zlib.createGzip()).pipe(res);
 
                 } else {
-                    res.writeHead(200, {});
+                    res.writeHead(200, {
+                        'Content-Type': file.type
+                    });
                     ws.pipe(res);
                 }
             });

@@ -79,6 +79,7 @@ UploadFS.Uploader = function (options) {
 
     /**
      * Returns the file
+     * @return {object}
      */
     self.getFile = function () {
         return file;
