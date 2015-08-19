@@ -185,6 +185,9 @@ if (Meteor.isServer) {
 
                 // Create temp stream form transformation
                 var ws = new stream.PassThrough();
+                ws.on('close', function() {
+                    ws.emit('end');
+                });
 
                 // Execute transformation
                 // todo add request query params to transformRead to allow returning alternative version of the file (eg: ?thumb=256x256)
