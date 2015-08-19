@@ -208,7 +208,9 @@ if (Meteor.isServer) {
                     ws.pipe(zlib.createGzip()).pipe(res);
 
                 } else {
-                    res.writeHead(200, {});
+                    res.writeHead(200, {
+                        'Content-Type': file.type
+                    });
                     ws.pipe(res);
                 }
             });
