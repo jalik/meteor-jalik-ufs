@@ -73,6 +73,11 @@ if (Meteor.isServer) {
                     }
                 });
 
+                // Execute callback
+                if (typeof store.onFinishUpload == 'function') {
+                    store.onFinishUpload(file);
+                }
+
                 fut.return(true);
             }));
 

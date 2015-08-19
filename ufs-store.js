@@ -11,6 +11,7 @@ UploadFS.Store = function (options) {
         collection: null,
         filter: null,
         name: null,
+        onFinishUpload: null,
         onRead: null,
         transformRead: null,
         transformWrite: null
@@ -40,6 +41,9 @@ UploadFS.Store = function (options) {
     if (UploadFS.getStore(options.name)) {
         throw new TypeError('name already exists');
     }
+    if (options.onFinishUpload && typeof options.onFinishUpload !== 'function') {
+        throw new TypeError('onFinishUpload is not a function');
+    }
     if (options.onRead && typeof options.onRead !== 'function') {
         throw new TypeError('onRead is not a function');
     }
@@ -51,6 +55,7 @@ UploadFS.Store = function (options) {
     }
 
     // Public attributes
+    self.onFinishUpload = options.onFinishUpload;
     self.onRead = options.onRead;
 
     // Private attributes
@@ -203,11 +208,19 @@ if (Meteor.isServer) {
     };
 
     /**
+     * Called when a file has been uploaded
+     * @param file
+     */
+    UploadFS.Store.prototype.onFinishUpload = function (file) {
+    };
+
+    /**
      * Called when a file is read from the store
      * @param fileId
+     * @param file
      * @param request
      * @param response
      */
-    UploadFS.Store.prototype.onRead = function (fileId, request, response) {
+    UploadFS.Store.prototype.onRead = function (fileId, file, request, response) {
     };
 }
