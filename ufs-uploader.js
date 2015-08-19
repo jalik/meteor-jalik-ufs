@@ -156,13 +156,13 @@ UploadFS.Uploader = function (options) {
                             });
                         } else {
                             // Finish the upload by telling the store the upload is complete
-                            Meteor.call('ufsComplete', fileId, store.getName(), function (err) {
+                            Meteor.call('ufsComplete', fileId, store.getName(), function (err, file) {
                                 if (err) {
                                     self.abort();
                                 } else {
                                     uploading.set(false);
                                     complete.set(true);
-                                    self.onComplete.call(self, fileId);
+                                    self.onComplete.call(self, file);
                                 }
                             });
                         }

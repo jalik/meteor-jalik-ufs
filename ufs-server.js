@@ -73,7 +73,13 @@ if (Meteor.isServer) {
                     }
                 });
 
-                fut.return(true);
+                if (typeof store.onFinishUpload == 'function') {
+                    file = store.getCollection().findOne(fileId)
+                    store.onFinishUpload(file);
+                    return fut.return(file);
+                }
+
+                fut.return(fileId);
             }));
 
             // Execute transformation
@@ -179,6 +185,9 @@ if (Meteor.isServer) {
 
                 // Create temp stream form transformation
                 var ws = new stream.PassThrough();
+                ws.on('close', function() {
+                    ws.emit('end');
+                });
 
                 // Execute transformation
                 // todo add request query params to transformRead to allow returning alternative version of the file (eg: ?thumb=256x256)
@@ -202,7 +211,9 @@ if (Meteor.isServer) {
                     ws.pipe(zlib.createGzip()).pipe(res);
 
                 } else {
-                    res.writeHead(200, {});
+                    res.writeHead(200, {
+                        'Content-Type': file.type
+                    });
                     ws.pipe(res);
                 }
             });
