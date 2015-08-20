@@ -87,6 +87,11 @@ if (Meteor.isServer) {
                 fut.return(file);
             }));
 
+            // Simulate write speed
+            if (UploadFS.config.simulateWriteDelay) {
+                Meteor._sleepForMs(UploadFS.config.simulateWriteDelay);
+            }
+
             // Execute transformation
             store.transformWrite(readStream, writeStream, fileId, file);
 
@@ -168,6 +173,11 @@ if (Meteor.isServer) {
                 res.writeHead(404, {});
                 res.end();
                 return;
+            }
+
+            // Simulate read speed
+            if (UploadFS.config.simulateReadDelay) {
+                Meteor._sleepForMs(UploadFS.config.simulateReadDelay);
             }
 
             // Get file from database
