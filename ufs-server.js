@@ -170,6 +170,10 @@ if (Meteor.isServer) {
                 return;
             }
 
+            if (UploadFS.config.simulateReadDelay) {
+                Meteor._sleepForMs(UploadFS.config.simulateReadDelay);
+            }
+
             // Get file from database
             var fileId = match[2].replace(/\.[^.]+$/, '');
             var file = store.getCollection().findOne(fileId);
