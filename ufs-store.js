@@ -117,9 +117,6 @@ UploadFS.Store = function (options) {
          * @param file
          */
         self.transformWrite = function (from, to, fileId, file) {
-            if (UploadFS.config.simulateWriteDelay) {
-                Meteor._sleepForMs(UploadFS.config.simulateWriteDelay);
-            }
             if (typeof transformWrite === 'function') {
                 transformWrite.call(self, from, to, fileId, file);
             } else {
