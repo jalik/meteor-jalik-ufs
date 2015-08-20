@@ -215,20 +215,23 @@ if (Meteor.isServer) {
                 if (accept.match(/\bdeflate\b/)) {
                     res.writeHead(200, {
                         'Content-Encoding': 'deflate',
-                        'Content-Type': file.type
+                        'Content-Type': file.type,
+                        'Content-Length': file.size
                     });
                     ws.pipe(zlib.createDeflate()).pipe(res);
 
                 } else if (accept.match(/\bgzip\b/)) {
                     res.writeHead(200, {
                         'Content-Encoding': 'gzip',
-                        'Content-Type': file.type
+                        'Content-Type': file.type,
+                        'Content-Length': file.size
                     });
                     ws.pipe(zlib.createGzip()).pipe(res);
 
                 } else {
                     res.writeHead(200, {
-                        'Content-Type': file.type
+                        'Content-Type': file.type,
+                        'Content-Length': file.size
                     });
                     ws.pipe(res);
                 }
