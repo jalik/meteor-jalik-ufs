@@ -195,11 +195,18 @@ if (Meteor.isServer) {
             }
 
             d.run(function () {
+                var totalLength = 0;
+
                 // Get file stream
                 var rs = store.getReadStream(fileId, file);
 
                 // Create temp stream form transformation
                 var ws = new stream.PassThrough();
+
+                // Calculate stream length
+                ws.on('data', function (chunk) {
+                    totalLength += chunk.length;
+                });
 
                 // Force ending of stream
                 ws.on('close', function () {
