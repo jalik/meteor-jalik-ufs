@@ -195,47 +195,60 @@ if (Meteor.isServer) {
             }
 
             d.run(function () {
+                var accept = req.headers['accept-encoding'] || '';
+                var rs = store.getReadStream(fileId, file);
+                var ws = new stream.PassThrough();
                 var totalLength = 0;
 
-                // Get file stream
-                var rs = store.getReadStream(fileId, file);
+                // Catch read errors
+                rs.on('error', function (err) {
+                    console.error(err);
+                });
 
-                // Create temp stream form transformation
-                var ws = new stream.PassThrough();
+                // Catch write errors
+                ws.on('error', function (err) {
+                    console.error(err);
+                });
 
                 // Calculate stream length
                 ws.on('data', function (chunk) {
                     totalLength += chunk.length;
+                    //console.log('DATA', totalLength);
                 });
 
                 // Force ending of stream
                 ws.on('close', function () {
+                    //console.log('CLOSE');
                     ws.emit('end');
                 });
 
-                // Execute transformation
+                // Transform stream
                 store.transformRead(rs, ws, fileId, file, req);
 
-                var accept = req.headers['accept-encoding'] || '';
-
-                // Compress data if supported by the client
-                if (accept.match(/\bdeflate\b/)) {
-                    res.writeHead(200, {
-                        'Content-Encoding': 'deflate',
-                        'Content-Type': file.type
-                    });
-                    ws.pipe(zlib.createDeflate()).pipe(res);
-
-                } else if (accept.match(/\bgzip\b/)) {
+                // Compress data using gzip
+                if (accept.match(/\bgzip\b/)) {
+                    //console.log("GZIP")
                     res.writeHead(200, {
                         'Content-Encoding': 'gzip',
                         'Content-Type': file.type
                     });
                     ws.pipe(zlib.createGzip()).pipe(res);
-
-                } else {
+                }
+                // Compress data using deflate
+                else if (accept.match(/\bdeflate\b/)) {
+                    //console.log("DEFLATE")
                     res.writeHead(200, {
+                        'Content-Encoding': 'deflate',
                         'Content-Type': file.type
+                    });
+                    ws.pipe(zlib.createDeflate()).pipe(res);
+                }
+                // Send data uncompressed
+                else {
+                    //console.log("RAW")
+                    res.writeHead(200, {
+                        'Content-Type': file.type,
+                        //'Content-Length': totalLength
                     });
                     ws.pipe(res);
                 }
