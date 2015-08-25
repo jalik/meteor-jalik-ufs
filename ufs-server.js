@@ -199,6 +199,10 @@ if (Meteor.isServer) {
                 var rs = store.getReadStream(fileId, file);
                 var ws = new stream.PassThrough();
                 var totalLength = 0;
+                var headers = {
+                    'Content-Type': file.type,
+                    'Content-Length': file.size
+                };
 
                 // Catch read errors
                 rs.on('error', function (err) {
@@ -210,12 +214,6 @@ if (Meteor.isServer) {
                     console.error(err);
                 });
 
-                // Calculate stream length
-                ws.on('data', function (chunk) {
-                    totalLength += chunk.length;
-                    //console.log('DATA', totalLength);
-                });
-
                 // Force ending of stream
                 ws.on('close', function () {
                     //console.log('CLOSE');
@@ -223,33 +221,28 @@ if (Meteor.isServer) {
                 });
 
                 // Transform stream
-                store.transformRead(rs, ws, fileId, file, req);
+                store.transformRead(rs, ws, fileId, file, req, headers);
 
                 // Compress data using gzip
                 if (accept.match(/\bgzip\b/)) {
                     //console.log("GZIP")
-                    res.writeHead(200, {
-                        'Content-Encoding': 'gzip',
-                        'Content-Type': file.type
-                    });
+                    headers['Content-Encoding'] = 'gzip';
+                    delete headers['Content-Length'];
+                    res.writeHead(200, headers);
                     ws.pipe(zlib.createGzip()).pipe(res);
                 }
                 // Compress data using deflate
                 else if (accept.match(/\bdeflate\b/)) {
                     //console.log("DEFLATE")
-                    res.writeHead(200, {
-                        'Content-Encoding': 'deflate',
-                        'Content-Type': file.type
-                    });
+                    headers['Content-Encoding'] = 'deflate';
+                    delete headers['Content-Length'];
+                    res.writeHead(200, headers);
                     ws.pipe(zlib.createDeflate()).pipe(res);
                 }
                 // Send data uncompressed
                 else {
                     //console.log("RAW")
-                    res.writeHead(200, {
-                        'Content-Type': file.type,
-                        //'Content-Length': totalLength
-                    });
+                    res.writeHead(200, headers);
                     ws.pipe(res);
                 }
             });
