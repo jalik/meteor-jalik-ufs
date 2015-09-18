@@ -36,64 +36,26 @@ if (Meteor.isServer) {
 
             var fut = new Future();
             var tmpFile = UploadFS.getTempFilePath(fileId);
-            var file = store.getCollection().findOne(fileId);
-            var writeStream = store.getWriteStream(fileId, file);
+
+            // Get the temporary file
             var readStream = fs.createReadStream(tmpFile, {
                 flags: 'r',
                 encoding: null,
                 autoClose: true
             });
 
-            readStream.on('error', function (err) {
-                console.error(err);
-                store.delete(fileId);
-                fut.throw(err);
-            });
-
-            writeStream.on('error', function (err) {
-                console.error(err);
-                store.delete(fileId);
-                fut.throw(err);
-            });
-
-            writeStream.on('finish', Meteor.bindEnvironment(function () {
-                // Delete the temporary file
-                Meteor.setTimeout(function () {
-                    fs.unlink(tmpFile);
-                }, 500);
-
-                // Set file attribute
-                file.complete = true;
-                file.uploading = false;
-                file.uploadedAt = new Date();
-                file.url = store.getFileURL(fileId);
-
-                // Sets the file URL when file transfer is complete,
-                // this way, the image will loads entirely.
-                store.getCollection().update(fileId, {
-                    $set: {
-                        complete: true,
-                        uploading: false,
-                        uploadedAt: file.uploadedAt,
-                        url: file.url
-                    }
-                });
-
-                // Execute callback
-                if (typeof store.onFinishUpload == 'function') {
-                    store.onFinishUpload(file);
+            // Save the file in the store
+            store.write(readStream, fileId, function (err, file) {
+                if (err) {
+                    // Delete the temporary file
+                    Meteor.setTimeout(function () {
+                        fs.unlink(tmpFile);
+                    }, 500);
+                    fut.throw(err);
+                } else {
+                    fut.return(file);
                 }
-
-                fut.return(file);
-            }));
-
-            // Simulate write speed
-            if (UploadFS.config.simulateWriteDelay) {
-                Meteor._sleepForMs(UploadFS.config.simulateWriteDelay);
-            }
-
-            // Execute transformation
-            store.transformWrite(readStream, writeStream, fileId, file);
+            });
 
             return fut.wait();
         },
@@ -198,7 +160,6 @@ if (Meteor.isServer) {
                 var accept = req.headers['accept-encoding'] || '';
                 var rs = store.getReadStream(fileId, file);
                 var ws = new stream.PassThrough();
-                var totalLength = 0;
                 var headers = {
                     'Content-Type': file.type,
                     'Content-Length': file.size

@@ -94,6 +94,18 @@ UploadFS.Store = function (options) {
 
     if (Meteor.isServer) {
         /**
+         * Creates the file in the collection
+         * @param file
+         * @return {string}
+         */
+        self.create = function (file) {
+            file.complete = false;
+            file.uploading = true;
+            file.uploaded = false;
+            return self.getCollection().insert(file);
+        };
+
+        /**
          * Transforms the file on reading
          * @param from
          * @param to
@@ -122,6 +134,64 @@ UploadFS.Store = function (options) {
             } else {
                 from.pipe(to);
             }
+        };
+
+        /**
+         * Writes the file to the store
+         * @param inStream
+         * @param fileId
+         * @param callback
+         */
+        self.write = function (inStream, fileId, callback) {
+            var file = self.getCollection().findOne(fileId);
+            var outStream = self.getWriteStream(fileId, file);
+
+            inStream.on('error', function (err) {
+                callback.call(self, err);
+                console.error(err);
+                self.delete(fileId);
+            });
+
+            outStream.on('error', function (err) {
+                callback.call(self, err);
+                console.error(err);
+                self.delete(fileId);
+            });
+
+            outStream.on('finish', Meteor.bindEnvironment(function () {
+                // Set file attribute
+                file.complete = true;
+                file.uploading = false;
+                file.uploadedAt = new Date();
+                file.url = self.getFileURL(fileId);
+
+                // Sets the file URL when file transfer is complete,
+                // this way, the image will loads entirely.
+                self.getCollection().update(fileId, {
+                    $set: {
+                        complete: true,
+                        uploading: false,
+                        uploadedAt: file.uploadedAt,
+                        url: file.url
+                    }
+                });
+
+                // Return file info
+                callback.call(self, null, file);
+
+                // Execute callback
+                if (typeof self.onFinishUpload == 'function') {
+                    self.onFinishUpload(file);
+                }
+            }));
+
+            // Simulate write speed
+            if (UploadFS.config.simulateWriteDelay) {
+                Meteor._sleepForMs(UploadFS.config.simulateWriteDelay);
+            }
+
+            // Execute transformation
+            self.transformWrite(inStream, outStream, fileId, file);
         };
     }
 

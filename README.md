@@ -247,6 +247,24 @@ Template.upload.events({
 });
 ```
 
+### Writing files
+
+Sometimes you could need to write to the store directly on the server :
+
+```js
+// Insert the file in database
+var fileId = store.create(file);
+
+// Save the file to the store
+store.write(inStream, fileId, function(err, file) {
+    if (err) {
+        console.error(err);
+    }else {
+        console.log('file saved to store');
+    }
+});
+```
+
 ### Displaying photos
 
 After that, if everything went good, you have you file saved to the store and in database.
