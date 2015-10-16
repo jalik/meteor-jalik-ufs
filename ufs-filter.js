@@ -70,29 +70,24 @@ UploadFS.Filter.prototype.check = function (file) {
         throw new Meteor.Error('invalid-file-extension', 'The file extension is not accepted');
     }
     // Check content type
-    if (this.getContentTypes() && checkContentType(file.extension, this.getContentTypes())) {
+    if (this.getContentTypes() && !checkContentType(file.type, this.getContentTypes())) {
         throw new Meteor.Error('invalid-file-type', 'The file type is not accepted');
     }
     return true;
 };
 
 function checkContentType(type, list) {
-    for (var i = 0; i < list.length; i += 1) {
-        var accept = list[i];
+    if (_.contains(list, type)) {
+        return true;
+    } else {
+        wildCardGlob = '/*';
+        wildcards = _.filter(list, function (item) { return item.indexOf(wildCardGlob) > 0; });
 
-        // Strict comparison
-        if (accept === type) {
+        if (_.contains(wildcards, type.replace(/(\/.*)$/, wildCardGlob))) {
             return true;
         }
-
-        // Wildcard comparison
-        var types = ['image', 'audio', 'video'];
-
-        for (var j = 0; j < types.length; j += 1) {
-            if (accept === types[j] + '/*' && type.indexOf(types[j] + '/') === 0) {
-                return true;
-            }
-        }
     }
+
     return false;
+
 }
