@@ -80,8 +80,8 @@ function checkContentType(type, list) {
     if (_.contains(list, type)) {
         return true;
     } else {
-        wildCardGlob = '/*';
-        wildcards = _.filter(list, function (item) { return item.indexOf(wildCardGlob) > 0; });
+        var wildCardGlob = '/*';
+        var wildcards = _.filter(list, function (item) { return item.indexOf(wildCardGlob) > 0; });
 
         if (_.contains(wildcards, type.replace(/(\/.*)$/, wildCardGlob))) {
             return true;
