@@ -172,23 +172,23 @@ Meteor.photosStore = new UploadFS.store.Local({
 });
 ```
 
-### Uploading a file
+### Uploading files
 
-When the store on the server is configured, you can upload a file.
+When the store on the server is configured, you can upload files to it.
 
-Here is the template to upload a file :
+Here is the template to upload one or more files :
 
 ```html
 <template name="upload">
-    <input type="file">
+    <input type="files" multiple>
 </template>
 ```
 
-And there the code to upload the file :
+And there the code to upload the selected files :
 
 ```js
 Template.upload.events({
-    'change input[type=file]': function (ev) {
+    'change input[type=files]': function (ev) {
         var self = this;
     
         // Here we get the ArrayBuffer for each file of the event

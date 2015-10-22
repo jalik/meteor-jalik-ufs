@@ -39,13 +39,13 @@ UploadFS = {
             throw new TypeError('callback is not a function');
         }
 
-        var reader = new FileReader();
         var files = event.target.files;
 
         for (var i = 0; i < files.length; i += 1) {
             var file = files[i];
 
             (function (file) {
+                var reader = new FileReader();
                 reader.onload = function (ev) {
                     callback.call(UploadFS, ev.target.result, file);
                 };
