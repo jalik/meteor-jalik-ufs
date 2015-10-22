@@ -4,6 +4,10 @@ UploadFS is a Meteor package that aims to make file uploading easy, fast and con
 An important feature is the ability to **start, stop or even abort a transfer** when you want.
 It currently only supports file system storage but it is possible to extend possibilities by creating new Stores yourself.
 
+## Testing
+
+You can test the package by downloading and running [UFS-Example](https://github.com/jalik/ufs-example) which is simple demo of UploadFS.
+
 ### Installation
 
 To install the package, execute this command in the root of your project :
