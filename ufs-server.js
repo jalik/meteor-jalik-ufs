@@ -54,6 +54,7 @@ if (Meteor.isServer) {
                     fut.throw(err);
                 } else {
                     fut.return(file);
+                    fs.unlink(tmpFile);
                 }
             });
 
