@@ -67,14 +67,19 @@ UploadFS.Uploader = function (options) {
      */
     self.abort = function () {
         uploading.set(false);
-        complete.set(false);
-        loaded.set(0);
-        fileId = null;
-        offset = 0;
-        tries = 0;
 
         // Remove the file from database
-        store.getCollection().remove(fileId);
+        store.getCollection().remove(fileId, function (err) {
+            if (err) {
+                console.error(err);
+            } else {
+                fileId = null;
+                offset = 0;
+                tries = 0;
+                loaded.set(0);
+                complete.set(false);
+            }
+        });
     };
 
     /**
