@@ -124,10 +124,10 @@ You can access and modify settings via `UploadFS.config`.
 
 ```js
 // Activate simulation for slowing file reading
-UploadFS.conig.simulateReadDelay = 1000; // 1 sec
+UploadFS.config.simulateReadDelay = 1000; // 1 sec
 
 // Activate simulation for slowing file writing
-UploadFS.conig.simulateWriteDelay = 2000; // 2 sec
+UploadFS.config.simulateWriteDelay = 2000; // 2 sec
 
 // This path will be appended to the site URL, be sure to not put a "/" as first character
 // for example, a PNG file with the _id 12345 in the "photos" store will be available via this URL :
