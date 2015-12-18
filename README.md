@@ -149,12 +149,13 @@ Meteor.photosStore = new UploadFS.store.Local({
     collection: Meteor.photos,
     name: 'photos',
     path: '/uploads/photos',
-    // Called before reading file to check if we can return it (for example)
-    onRead: function (fileId, request, response) {
-        if (isPrivateFile(fileId, request)) {
-            throw new Meteor.Error(403, 'this file is private');
-            // Because this code is executed before reading and returning the file,
-            // throwing an exception will simply stops returning the file to the client.
+    onRead: function (fileId, file, request, response) {
+        // Allow file access if not protected or if token is correct
+        if (file.token === null || request.query.token === file.token) {
+            return true;
+        } else {
+            response.writeHead(403);
+            return false;
         }
     }
 });

@@ -24,7 +24,7 @@ UploadFS.Store = function (options) {
 
     // todo remove migration warning
     if (options.transform) {
-        console.warn('use transformWrite instead of transform, it will be removed in the next releases');
+        console.warn('ufs: store.transform() is deprecated, use store.transformWrite() instead !');
         options.transformWrite = options.transform;
     }
 
@@ -55,8 +55,8 @@ UploadFS.Store = function (options) {
     }
 
     // Public attributes
-    self.onFinishUpload = options.onFinishUpload;
-    self.onRead = options.onRead;
+    self.onFinishUpload = options.onFinishUpload ? options.onFinishUpload : self.onFinishUpload;
+    self.onRead = options.onRead ? options.onRead : self.onRead;
 
     // Private attributes
     var collection = options.collection;
@@ -138,27 +138,27 @@ UploadFS.Store = function (options) {
 
         /**
          * Writes the file to the store
-         * @param inStream
+         * @param rs
          * @param fileId
          * @param callback
          */
-        self.write = function (inStream, fileId, callback) {
+        self.write = function (rs, fileId, callback) {
             var file = self.getCollection().findOne(fileId);
-            var outStream = self.getWriteStream(fileId, file);
+            var ws = self.getWriteStream(fileId, file);
 
-            inStream.on('error', function (err) {
+            rs.on('error', function (err) {
                 callback.call(self, err);
                 console.error(err);
                 self.delete(fileId);
             });
 
-            outStream.on('error', function (err) {
+            ws.on('error', function (err) {
                 callback.call(self, err);
                 console.error(err);
                 self.delete(fileId);
             });
 
-            outStream.on('finish', Meteor.bindEnvironment(function () {
+            ws.on('finish', Meteor.bindEnvironment(function () {
                 // Set file attribute
                 file.complete = true;
                 file.uploading = false;
@@ -191,7 +191,7 @@ UploadFS.Store = function (options) {
             }
 
             // Execute transformation
-            self.transformWrite(inStream, outStream, fileId, file);
+            self.transformWrite(rs, ws, fileId, file);
         };
     }
 
@@ -232,13 +232,9 @@ UploadFS.Store = function (options) {
  */
 UploadFS.Store.prototype.getFileURL = function (fileId) {
     var file = this.getCollection().findOne(fileId, {
-        fields: {extension: 1}
+        fields: {name: 1}
     });
-    var url = file && this.getURL() + '/' + fileId;
-    if (file.extension && file.extension !== '') {
-        url = url + '.' + file.extension
-    }
-    return url;
+    return file && this.getURL() + '/' + fileId + '/' + file.name;
 };
 
 /**
@@ -291,7 +287,9 @@ if (Meteor.isServer) {
      * @param file
      * @param request
      * @param response
+     * @return boolean
      */
     UploadFS.Store.prototype.onRead = function (fileId, file, request, response) {
+        return true;
     };
 }

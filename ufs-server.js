@@ -124,8 +124,8 @@ if (Meteor.isServer) {
         // Remove store path
         var path = req.url.substr(UploadFS.config.storesPath.length + 1);
 
-        // Get store and file
-        var regExp = new RegExp('^\/([^\/]+)\/([^\/]+)$');
+        // Get store, file Id and file name
+        var regExp = new RegExp('^\/([^\/]+)\/([^\/]+)(?:\/([^\/]+))?$');
         var match = regExp.exec(path);
 
         if (match !== null) {
@@ -133,7 +133,19 @@ if (Meteor.isServer) {
             var storeName = match[1];
             var store = UploadFS.getStore(storeName);
             if (!store) {
-                res.writeHead(404, {});
+                res.writeHead(404);
+                res.end();
+                return;
+            }
+
+            // Remove file extension from file Id
+            var index = match[2].indexOf('.');
+            var fileId = index !== -1 ? match[2].substr(0, index) : match[2];
+
+            // Get file from database
+            var file = store.getCollection().findOne(fileId);
+            if (!file) {
+                res.writeHead(404);
                 res.end();
                 return;
             }
@@ -143,69 +155,67 @@ if (Meteor.isServer) {
                 Meteor._sleepForMs(UploadFS.config.simulateReadDelay);
             }
 
-            // Get file from database
-            var fileId = match[2].replace(/\.[^.]+$/, '');
-            var file = store.getCollection().findOne(fileId);
-            if (!file) {
-                res.writeHead(404, {});
-                res.end();
-                return;
-            }
-
-            // Execute callback to do some check (eg. security check)
-            if (typeof store.onRead === 'function') {
-                store.onRead.call(store, fileId, file, req, res);
-            }
-
             d.run(function () {
-                var accept = req.headers['accept-encoding'] || '';
-                var rs = store.getReadStream(fileId, file);
+                // Create a temporary output stream
                 var ws = new stream.PassThrough();
-                var headers = {
-                    'Content-Type': file.type,
-                    'Content-Length': file.size
-                };
-
-                // Catch read errors
-                rs.on('error', function (err) {
-                    console.error(err);
-                });
 
                 // Catch write errors
                 ws.on('error', function (err) {
                     console.error(err);
                 });
 
-                // Force ending of stream
+                // Close output stream at the end
                 ws.on('close', function () {
-                    //console.log('CLOSE');
                     ws.emit('end');
                 });
 
-                // Transform stream
-                store.transformRead(rs, ws, fileId, file, req, headers);
+                if (typeof store.onRead === 'function') {
+                    // Check if the file can be accessed
+                    if (store.onRead.call(store, fileId, file, req, res)) {
+                        // Open the file stream
+                        var rs = store.getReadStream(fileId, file);
 
-                // Compress data using gzip
-                if (accept.match(/\bgzip\b/)) {
-                    //console.log("GZIP")
-                    headers['Content-Encoding'] = 'gzip';
-                    delete headers['Content-Length'];
-                    res.writeHead(200, headers);
-                    ws.pipe(zlib.createGzip()).pipe(res);
-                }
-                // Compress data using deflate
-                else if (accept.match(/\bdeflate\b/)) {
-                    //console.log("DEFLATE")
-                    headers['Content-Encoding'] = 'deflate';
-                    delete headers['Content-Length'];
-                    res.writeHead(200, headers);
-                    ws.pipe(zlib.createDeflate()).pipe(res);
-                }
-                // Send data uncompressed
-                else {
-                    //console.log("RAW")
-                    res.writeHead(200, headers);
-                    ws.pipe(res);
+                        // Catch read errors
+                        rs.on('error', function (err) {
+                            console.error(err);
+                        });
+
+                        var accept = req.headers['accept-encoding'] || '';
+                        var headers = {
+                            'Content-Type': file.type,
+                            'Content-Length': file.size
+                        };
+
+                        // Transform stream
+                        store.transformRead(rs, ws, fileId, file, req, headers);
+
+                        // Compress data using gzip
+                        if (accept.match(/\bgzip\b/)) {
+                            headers['Content-Encoding'] = 'gzip';
+                            delete headers['Content-Length'];
+                            res.writeHead(200, headers);
+                            ws.pipe(zlib.createGzip()).pipe(res);
+                        }
+                        // Compress data using deflate
+                        else if (accept.match(/\bdeflate\b/)) {
+                            headers['Content-Encoding'] = 'deflate';
+                            delete headers['Content-Length'];
+                            res.writeHead(200, headers);
+                            ws.pipe(zlib.createDeflate()).pipe(res);
+                        }
+                        // Send raw data
+                        else {
+                            res.writeHead(200, headers);
+                            ws.pipe(res);
+                        }
+                    } else {
+                        //res.writeHead(403);
+                        res.end();
+                    }
+                } else {
+                    console.error('ufs: store.onRead is not a function');
+                    res.writeHead(500);
+                    res.end();
                 }
             });
 
