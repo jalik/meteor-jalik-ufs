@@ -162,6 +162,7 @@ if (Meteor.isServer) {
                 // Catch write errors
                 ws.on('error', function (err) {
                     console.error(err);
+                    res.end();
                 });
 
                 // Close output stream at the end
@@ -178,6 +179,7 @@ if (Meteor.isServer) {
                         // Catch read errors
                         rs.on('error', function (err) {
                             console.error(err);
+                            res.end();
                         });
 
                         var accept = req.headers['accept-encoding'] || '';

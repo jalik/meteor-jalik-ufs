@@ -10,6 +10,7 @@ UploadFS.Filter = function (options) {
     options = _.extend({
         contentTypes: null,
         extensions: null,
+        minSize: 1,
         maxSize: 1024 * 1000 * 10
     }, options);
 
@@ -20,6 +21,9 @@ UploadFS.Filter = function (options) {
     if (options.extensions && !(options.extensions instanceof Array)) {
         throw new TypeError('extensions is not an Array');
     }
+    if (typeof options.minSize !== 'number') {
+        throw new TypeError('minSize is not a number');
+    }
     if (typeof options.maxSize !== 'number') {
         throw new TypeError('maxSize is not a number');
     }
@@ -28,6 +32,7 @@ UploadFS.Filter = function (options) {
     var contentTypes = options.contentTypes;
     var extensions = options.extensions;
     var maxSize = parseInt(options.maxSize);
+    var minSize = parseInt(options.minSize);
 
     /**
      * Returns the allowed content types
@@ -46,11 +51,19 @@ UploadFS.Filter = function (options) {
     };
 
     /**
-     * Returns the max file size
+     * Returns the maximum file size
      * @return {Number}
      */
     self.getMaxSize = function () {
         return maxSize;
+    };
+
+    /**
+     * Returns the minimum file size
+     * @return {Number}
+     */
+    self.getMinSize = function () {
+        return minSize;
     };
 };
 
@@ -62,8 +75,11 @@ UploadFS.Filter = function (options) {
  */
 UploadFS.Filter.prototype.check = function (file) {
     // Check size
+    if (file.size < this.getMinSize()) {
+        throw new Meteor.Error('file-too-small', 'The file is too small, min size is ' + this.getMinSize());
+    }
     if (file.size > this.getMaxSize()) {
-        throw new Meteor.Error('file-too-large', 'The file is too large, max is ' + this.getMaxSize());
+        throw new Meteor.Error('file-too-large', 'The file is too large, max size is ' + this.getMaxSize());
     }
     // Check extension
     if (this.getExtensions() && !_.contains(this.getExtensions(), file.extension)) {
@@ -81,7 +97,9 @@ function checkContentType(type, list) {
         return true;
     } else {
         var wildCardGlob = '/*';
-        var wildcards = _.filter(list, function (item) { return item.indexOf(wildCardGlob) > 0; });
+        var wildcards = _.filter(list, function (item) {
+            return item.indexOf(wildCardGlob) > 0;
+        });
 
         if (_.contains(wildcards, type.replace(/(\/.*)$/, wildCardGlob))) {
             return true;
