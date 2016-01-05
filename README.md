@@ -144,6 +144,16 @@ UploadFS.config.tmpDir = '/tmp/uploads';
 When returning the file for a HTTP request on the endpoint, you can do some checks to decide whether or not the file should be sent to the client.
 This is done by defining the **onRead()** method on the store.
 
+**Note:** Since v0.3.5, every file has a token attribute, this token can be used as a password to access/display the file. Just be sure to not publish it if not needed. You can also change this token whenever you want making older links to be staled.
+
+```html
+{{#with image}}
+<a href="{{url}}?token={{token}}">
+    <img src="{{url}}?token={{token}}">
+</a>
+{{/with}}
+```
+
 ```js
 Meteor.photosStore = new UploadFS.store.Local({
     collection: Meteor.photos,
@@ -270,7 +280,7 @@ store.write(inStream, fileId, function(err, file) {
 });
 ```
 
-### Displaying photos
+### Displaying images
 
 After that, if everything went good, you have you file saved to the store and in database.
 You can get the file as usual and display it using the url attribute of the document.
@@ -299,4 +309,20 @@ Template.photos.helpers({
         return Meteor.photos.find();
     }
 });
+```
+
+### Helpers
+
+Some helpers are available by default to help you work with files inside templates.
+
+```html
+{{#if isAudio}}
+    <audio src="{{url}}" controls></audio>
+{{/if}}
+{{#if isImage}}
+    <img src="{{url}}">
+{{/if}}
+{{#if isVideo}}
+    <video src="{{url}}" controls></video>
+{{/if}}
 ```

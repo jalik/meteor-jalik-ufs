@@ -170,6 +170,7 @@ UploadFS.Store = function (options) {
                 self.getCollection().update(fileId, {
                     $set: {
                         complete: true,
+                        token: UploadFS.generateToken(),
                         uploading: false,
                         uploadedAt: file.uploadedAt,
                         url: file.url

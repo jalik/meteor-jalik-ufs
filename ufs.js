@@ -54,3 +54,18 @@ UploadFS = {
         }
     }
 };
+
+if (Meteor.isServer) {
+    /**
+     * Generates a random token using a pattern (xy)
+     * @param pattern
+     * @return {string}
+     */
+    UploadFS.generateToken = function (pattern) {
+        return (pattern || 'xyxyxyxyxy').replace(/[xy]/g, function (c) {
+            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+            var s = v.toString(16);
+            return Math.round(Math.random()) ? s.toUpperCase() : s;
+        });
+    };
+}
