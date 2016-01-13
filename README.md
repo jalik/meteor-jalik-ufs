@@ -30,110 +30,8 @@ As the package is modular, you can add support for custom stores.
 ## Introduction
 
 In file uploading, you basically have a client and a server, I haven't change those things.
-So on the client side, you create an uploader for each file transfer needed, 
-while on the server side you only configure a store where the file will be saved.
-I'll use the `UploadFS.store.Local` store for the following examples.
-
-## Creating a Store
-
-**The code below is available to the client and the server.**
-
-A store is the place where your files are saved.
-Let say you have a **photos** collection :
-
-```js
-Meteor.photos = new Mongo.Collection('photos');
-```
-
-You need to create the store that will communicate with the above **collection**.
-And don't forget to give a **name**, it's the only way for the uploader to know
-on which store it should save a file.
-
-```js
-Meteor.photosStore = new UploadFS.store.Local({
-    collection: Meteor.photos,
-    name: 'photos',
-    path: '/uploads/photos'
-});
-```
-
-## Filtering uploads
-
-You can pass an `UploadFS.Filter` to a store to define restrictions on file uploads.
-Filter is tested before inserting a file in the collection and uses `Meteor.deny()`.
-If the file does not match the filter, it won't be inserted and will not be uploaded.
-
-```js
-Meteor.photosStore = new UploadFS.store.Local({
-    collection: Meteor.photos,
-    name: 'photos',
-    path: '/uploads/photos',
-    // Apply a filter to restrict file upload
-    filter: new UploadFS.Filter({
-        minSize: 1,
-        maxSize: 1024 * 1000 // 1MB,
-        contentTypes: ['image/*'],
-        extensions: ['jpg', 'png']
-    })
-});
-```
-
-The filter can be a function in which you need to throw an Error to stop insertion.
-
-```js
-Meteor.photosStore = new UploadFS.store.Local({
-    collection: Meteor.photos,
-    name: 'photos',
-    path: '/uploads/photos',
-    // Apply a filter to restrict file upload
-    filter: function(userId, file) {
-        if (!userId) {
-            throw new Meteor.Error(403, 'Forbidden');
-        }
-    }
-});
-```
-
-## Transforming files
-
-If you need to modify the file before it is saved to the store, you have to use the **transform** option.
-
-```js
-Meteor.photosStore = new UploadFS.store.Local({
-    collection: Meteor.photos,
-    name: 'photos',
-    path: '/uploads/photos',
-    // Transform file when reading
-    transformRead: function (from, to, fileId, file, request) {
-        from.pipe(to);
-    }
-    // Transform file when writing
-    transformWrite: function (from, to, fileId, file) {
-        var im = Npm.require('imagemagick-stream');
-        var resize = im().resize('200x200').quality(90);
-        from.pipe(resize).pipe(to);
-    }
-});
-```
-
-## Setting permissions
-
-As the uploader will interact with the collection, you must define permission rules.
-By default, there is no restriction (except the filter) on insert, remove and update actions.
-
-```js
-Meteor.photos.allow({
-    insert: function (userId, doc) {
-        return userId;
-    },
-    update: function (userId, doc) {
-        return userId === doc.userId;
-    },
-    remove: function (userId, doc) {
-        return userId === doc.userId;
-    }
-});
-```
+So on the client side, you create an uploader for each file transfer needed, while on the server side you only configure a store where the file will be saved.
+I'll use the `UploadFS.store.Local` store in the following examples.
 
 ## Configuration
 
@@ -156,10 +54,136 @@ UploadFS.config.storesPath = 'uploads';
 UploadFS.config.tmpDir = '/tmp/uploads';
 ```
 
-## Security
+## Creating a Store
 
-When returning the file for a HTTP request on the endpoint, you can do some checks to decide whether or not the file should be sent to the client.
-This is done by defining the **onRead()** method on the store.
+**All stores must be available on the client and the server.**
+
+A store is the place where your files are saved, it could be your local hard drive or a distant cloud hosting solution.
+Let say you have a **photos** collection which is used to save the files info.
+
+```js
+Photos = new Mongo.Collection('photos');
+```
+
+What you need is to create the store that will will contains the data of the **Photos** collection.
+The **name** of the store must be unique because it will be used by the uploader to send the file on the store.
+
+```js
+PhotosStore = new UploadFS.store.Local({
+    collection: Photos,
+    name: 'photos',
+    path: '/uploads/photos'
+});
+```
+
+## Filtering uploads
+
+You can pass an `UploadFS.Filter` to the store to define restrictions on file uploads.
+Filter is tested before inserting a file in the collection and uses `Meteor.deny()`.
+If the file does not match the filter, it won't be inserted and will not be uploaded.
+
+```js
+PhotosStore = new UploadFS.store.Local({
+    collection: Photos,
+    name: 'photos',
+    path: '/uploads/photos',
+    // Apply a filter to restrict file upload
+    filter: new UploadFS.Filter({
+        minSize: 1,
+        maxSize: 1024 * 1000 // 1MB,
+        contentTypes: ['image/*'],
+        extensions: ['jpg', 'png']
+    })
+});
+```
+
+The filter can be a function in which you need to throw an Error to stop insertion.
+
+```js
+PhotosStore = new UploadFS.store.Local({
+    collection: Photos,
+    name: 'photos',
+    path: '/uploads/photos',
+    // Apply a filter to restrict file upload
+    filter: function(userId, file) {
+        if (!userId) {
+            throw new Meteor.Error(403, 'Forbidden');
+        }
+    }
+});
+```
+
+## Transforming files
+
+If you need to modify the file before it is saved to the store, you have to use the **transform** option.
+A common use is to resize/compress images to get lighter versions of the uploaded files.
+
+```js
+PhotosStore = new UploadFS.store.Local({
+    collection: Photos,
+    name: 'photos',
+    path: '/uploads/photos',
+    // Transform file when reading
+    transformRead: function (from, to, fileId, file, request) {
+        from.pipe(to); // this returns the raw data
+    }
+    // Transform file when writing
+    transformWrite: function (from, to, fileId, file) {
+        var im = Npm.require('imagemagick-stream');
+        var resize = im().resize('800x600').quality(90);
+        from.pipe(resize).pipe(to);
+    }
+});
+```
+
+## Copying files (since v0.3.6)
+
+You can copy files to other stores, it could be for backup or just to have alternative versions of the same file (eg: thumbnails).
+
+```js
+Thumbnails = new Mongo.Collection('thumbnails');
+
+PhotosStore = new UploadFS.store.Local({
+    collection: Photos,
+    name: 'photos',
+    path: '/uploads/photos',
+    copyTo: [
+        new UploadFS.store.Local({
+            collection: Thumbnails,
+            name: 'thumbnails',
+            transformWrite: function(from, to, fileId, file) {
+                var im = Npm.require('imagemagick-stream');
+                var resize = im().resize('128x128').quality(80);
+                from.pipe(resize).pipe(to);
+            }
+        })
+    ]
+});
+```
+
+## Setting permissions
+
+If you don't want anyone to do anything, you must define permission rules.
+By default, there is no restriction (except the filter) on insert, remove and update actions.
+
+```js
+Photos.allow({
+    insert: function (userId, doc) {
+        return userId;
+    },
+    update: function (userId, doc) {
+        return userId === doc.userId;
+    },
+    remove: function (userId, doc) {
+        return userId === doc.userId;
+    }
+});
+```
+
+## Filtering file access
+
+When returning the file for a HTTP request, you can do some checks to decide whether or not the file should be sent to the client.
+This is done by defining the `onRead()` method on the store.
 
 **Note:** Since v0.3.5, every file has a token attribute when its transfer is complete, this token can be used as a password to access/display the file. Just be sure to not publish it if not needed. You can also change this token whenever you want making older links to be staled.
 
@@ -172,13 +196,13 @@ This is done by defining the **onRead()** method on the store.
 ```
 
 ```js
-Meteor.photosStore = new UploadFS.store.Local({
-    collection: Meteor.photos,
+PhotosStore = new UploadFS.store.Local({
+    collection: Photos,
     name: 'photos',
     path: '/uploads/photos',
     onRead: function (fileId, file, request, response) {
-        // Allow file access if not protected or if token is correct
-        if (file.token === null || request.query.token === file.token) {
+        // Allow file access if not private or if token is correct
+        if (file.isPublic || request.query.token === file.token) {
             return true;
         } else {
             response.writeHead(403);
@@ -193,8 +217,8 @@ Meteor.photosStore = new UploadFS.store.Local({
 Some events are triggered to allow you to do something at the right moment on server side.
 
 ```js
-Meteor.photosStore = new UploadFS.store.Local({
-    collection: Meteor.photos,
+PhotosStore = new UploadFS.store.Local({
+    collection: Photos,
     name: 'photos',
     path: '/uploads/photos',
     // Called when file has been uploaded
@@ -209,10 +233,14 @@ Meteor.photosStore = new UploadFS.store.Local({
 On server side, you can do something when there is a store IO error.
 
 ```js
-Meteor.photosStore = new UploadFS.store.Local({
-    collection: Meteor.photos,
+PhotosStore = new UploadFS.store.Local({
+    collection: Photos,
     name: 'photos',
     path: '/uploads/photos',
+    // Called when a copy error happened
+    onCopyError: function (err, fileId, file) {
+        console.error('Cannot create copy ' + file.name);
+    }
     // Called when a read error happened
     onReadError: function (err, fileId, file) {
         console.error('Cannot read ' + file.name);
@@ -233,7 +261,7 @@ Sometimes you could need to write to the store directly on the server without an
 var fileId = store.create(file);
 
 // Save the file to the store
-store.write(inStream, fileId, function(err, file) {
+store.write(readStream, fileId, function(err, file) {
     if (err) {
         console.error(err);
     }else {
@@ -275,7 +303,7 @@ Template.upload.events({
             // Create a new Uploader for this file
             var upload = new UploadFS.Uploader({
                 // This is where the uploader will save the file
-                store: Meteor.photosStore,
+                store: PhotosStore,
                 // The size of each chunk sent to the server
                 chunkSize: 1024 * 8,
                 // This tells how many tries to do if an error occurs during upload
@@ -347,7 +375,7 @@ Template.photos.helpers({
         return Math.round(this.progress * 100);
     },
     photos: function() {
-        return Meteor.photos.find();
+        return Photos.find();
     }
 });
 ```

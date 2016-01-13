@@ -11,6 +11,7 @@ UploadFS.Store = function (options) {
         collection: null,
         filter: null,
         name: null,
+        onCopyError: null,
         onFinishUpload: null,
         onRead: null,
         onReadError: null,
@@ -43,6 +44,9 @@ UploadFS.Store = function (options) {
     if (UploadFS.getStore(options.name)) {
         throw new TypeError('name already exists');
     }
+    if (options.onCopyError && typeof options.onCopyError !== 'function') {
+        throw new TypeError('onCopyError is not a function');
+    }
     if (options.onFinishUpload && typeof options.onFinishUpload !== 'function') {
         throw new TypeError('onFinishUpload is not a function');
     }
@@ -63,6 +67,7 @@ UploadFS.Store = function (options) {
     }
 
     // Public attributes
+    self.onCopyError = options.onCopyError || self.onCopyError;
     self.onFinishUpload = options.onFinishUpload || self.onFinishUpload;
     self.onRead = options.onRead || self.onRead;
     self.onReadError = options.onReadError || self.onReadError;
@@ -110,8 +115,9 @@ UploadFS.Store = function (options) {
          */
         self.create = function (file) {
             file.complete = false;
+            file.progress = 0;
+            file.store = name;
             file.uploading = true;
-            file.uploaded = false;
             return self.getCollection().insert(file);
         };
 
@@ -122,10 +128,11 @@ UploadFS.Store = function (options) {
          * @param fileId
          * @param file
          * @param request
+         * @param headers
          */
-        self.transformRead = function (from, to, fileId, file, request) {
+        self.transformRead = function (from, to, fileId, file, request, headers) {
             if (typeof transformRead === 'function') {
-                transformRead.call(self, from, to, fileId, file, request);
+                transformRead.call(self, from, to, fileId, file, request, headers);
             } else {
                 from.pipe(to);
             }
@@ -156,28 +163,24 @@ UploadFS.Store = function (options) {
             var file = self.getCollection().findOne(fileId);
             var ws = self.getWriteStream(fileId, file);
             var errorHandler = function (err) {
-                ws.end(null);
-                self.delete(fileId);
+                self.getCollection().remove(fileId);
                 self.onWriteError.call(self, err, fileId, file);
                 callback.call(self, err);
             };
 
-            rs.on('error', errorHandler);
-            ws.on('error', errorHandler);
+            rs.on('error', Meteor.bindEnvironment(errorHandler));
+            ws.on('error', Meteor.bindEnvironment(errorHandler));
             ws.on('finish', Meteor.bindEnvironment(function () {
-                // Set file size
                 var size = 0;
-                var is = self.getReadStream(fileId, file);
-                var os = new stream.PassThrough();
-                is.on('error', errorHandler);
-                os.on('error', errorHandler);
-                is.on('data', function (data) {
+                var from = self.getReadStream(fileId, file);
+
+                from.on('data', function (data) {
                     size += data.length;
                 });
-                is.on('end', Meteor.bindEnvironment(function () {
+                from.on('end', Meteor.bindEnvironment(function () {
                     // Set file attribute
                     file.complete = true;
-                    file.progress = 1.0;
+                    file.progress = 1;
                     file.size = size;
                     file.token = UploadFS.generateToken();
                     file.uploading = false;
@@ -189,7 +192,7 @@ UploadFS.Store = function (options) {
                     self.getCollection().update(fileId, {
                         $set: {
                             complete: file.complete,
-                            completed: file.completed,
+                            progress: file.progress,
                             size: file.size,
                             token: file.token,
                             uploading: file.uploading,
@@ -198,20 +201,51 @@ UploadFS.Store = function (options) {
                         }
                     });
 
+                    // todo move copy code here
+
                     // Return file info
                     callback.call(self, null, file);
 
                     // Execute callback
                     if (typeof self.onFinishUpload == 'function') {
-                        self.onFinishUpload(file);
+                        self.onFinishUpload.call(self, file);
                     }
                 }));
-                is.pipe(os);
             }));
 
             // Simulate write speed
             if (UploadFS.config.simulateWriteDelay) {
                 Meteor._sleepForMs(UploadFS.config.simulateWriteDelay);
+            }
+
+            // todo execute copy after original file saved
+            // Copy file to other stores
+            if (options.copyTo instanceof Array) {
+                for (var i = 0; i < options.copyTo.length; i += 1) {
+                    var copyStore = options.copyTo[i];
+                    var copyId = null;
+                    var copy = _.omit(file, '_id', 'url');
+                    copy.originalStore = self.getName();
+                    copy.originalId = fileId;
+
+                    try {
+                        // Create the copy
+                        copyId = copyStore.create(copy);
+
+                        (function (copyStore, copyId, copy) {
+                            // Write the copy
+                            copyStore.write(rs, copyId, Meteor.bindEnvironment(function (err) {
+                                if (err) {
+                                    copyStore.getCollection().remove(copyId);
+                                    self.onCopyError.call(self, err, copyId, copy);
+                                }
+                            }));
+                        })(copyStore, copyId, copy);
+                    } catch (err) {
+                        copyStore.getCollection().remove(copyId);
+                        self.onCopyError.call(self, err, copyId, copy);
+                    }
+                }
             }
 
             // Execute transformation
@@ -221,19 +255,28 @@ UploadFS.Store = function (options) {
 
     collection.before.insert(function (userId, file) {
         file.complete = false;
-        file.extension = file.name.substr((~-file.name.lastIndexOf('.') >>> 0) + 2).toLowerCase();
+        file.extension = file.name && file.name.substr((~-file.name.lastIndexOf('.') >>> 0) + 2).toLowerCase();
         file.progress = 0;
-        file.store = name;
         file.uploading = true;
-        file.userId = userId;
+        file.userId = file.userId || userId;
+    });
+
+    collection.after.remove(function (userId, file) {
+        if (Meteor.isServer) {
+            if (options.copyTo instanceof Array) {
+                for (var i = 0; i < options.copyTo.length; i += 1) {
+                    // Remove copies in stores
+                    options.copyTo[i].getCollection().remove({originalId: file._id});
+                }
+            }
+        }
     });
 
     collection.before.remove(function (userId, file) {
         if (Meteor.isServer) {
             // Delete the physical file in the store
-            if (file.complete) {
-                self.delete(file._id);
-            }
+            self.delete(file._id);
+
             // Delete the temporary file if uploading
             if (file.uploading || !file.complete) {
                 fs.unlink(UploadFS.getTempFilePath(file._id));
@@ -304,6 +347,17 @@ if (Meteor.isServer) {
      */
     UploadFS.Store.prototype.getWriteStream = function (fileId, file) {
         throw new Error('getWriteStream is not implemented');
+    };
+
+    /**
+     * Callback for copy errors
+     * @param err
+     * @param fileId
+     * @param file
+     * @return boolean
+     */
+    UploadFS.Store.prototype.onCopyError = function (err, fileId, file) {
+        console.error('Error copying file ' + fileId + ' : ' + err.message);
     };
 
     /**

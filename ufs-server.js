@@ -95,7 +95,7 @@ if (Meteor.isServer) {
 
             fs.appendFile(tmpFile, new Buffer(chunk), Meteor.bindEnvironment(function (err) {
                 if (err) {
-                    console.error(err);
+                    console.error(err.message);
                     fs.unlink(tmpFile);
                     fut.throw(err);
                 } else {
@@ -115,7 +115,7 @@ if (Meteor.isServer) {
     var d = domain.create();
 
     d.on('error', function (err) {
-        console.error(err);
+        console.error(err.message);
     });
 
     // Listen HTTP requests to serve files
@@ -167,11 +167,6 @@ if (Meteor.isServer) {
                         // Open the file stream
                         var rs = store.getReadStream(fileId, file);
                         var ws = new stream.PassThrough();
-                        var accept = req.headers['accept-encoding'] || '';
-                        var headers = {
-                            'Content-Type': file.type,
-                            'Content-Length': file.size
-                        };
 
                         rs.on('error', function (err) {
                             store.onReadError.call(store, err, fileId, file);
@@ -185,6 +180,12 @@ if (Meteor.isServer) {
                             // Close output stream at the end
                             ws.emit('end');
                         });
+
+                        var accept = req.headers['accept-encoding'] || '';
+                        var headers = {
+                            'Content-Type': file.type,
+                            'Content-Length': file.size
+                        };
 
                         // Transform stream
                         store.transformRead(rs, ws, fileId, file, req, headers);
