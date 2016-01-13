@@ -6,7 +6,6 @@ if (Meteor.isServer) {
     stream = Npm.require('stream');
     zlib = Npm.require('zlib');
 
-
     // Create the temporary upload dir
     Meteor.startup(function () {
         createTempDir();
@@ -38,14 +37,14 @@ if (Meteor.isServer) {
             var tmpFile = UploadFS.getTempFilePath(fileId);
 
             // Get the temporary file
-            var readStream = fs.createReadStream(tmpFile, {
+            var rs = fs.createReadStream(tmpFile, {
                 flags: 'r',
                 encoding: null,
                 autoClose: true
             });
 
             // Save the file in the store
-            store.write(readStream, fileId, function (err, file) {
+            store.write(rs, fileId, function (err, file) {
                 if (err) {
                     // Delete the temporary file
                     Meteor.setTimeout(function () {
@@ -66,9 +65,10 @@ if (Meteor.isServer) {
          * @param chunk
          * @param fileId
          * @param storeName
+         * @param progress
          * @return {*}
          */
-        ufsWrite: function (chunk, fileId, storeName) {
+        ufsWrite: function (chunk, fileId, storeName, progress) {
             check(fileId, String);
             check(storeName, String);
 
@@ -92,15 +92,20 @@ if (Meteor.isServer) {
 
             var fut = new Future();
             var tmpFile = UploadFS.getTempFilePath(fileId);
-            fs.appendFile(tmpFile, new Buffer(chunk), function (err) {
+
+            fs.appendFile(tmpFile, new Buffer(chunk), Meteor.bindEnvironment(function (err) {
                 if (err) {
                     console.error(err);
                     fs.unlink(tmpFile);
                     fut.throw(err);
                 } else {
+                    // Update completed state
+                    store.getCollection().update(fileId, {
+                        $set: {progress: progress}
+                    });
                     fut.return(chunk.length);
                 }
-            });
+            }));
             return fut.wait();
         }
     });
@@ -178,7 +183,7 @@ if (Meteor.isServer) {
 
                         // Catch read errors
                         rs.on('error', function (err) {
-                            console.error(err);
+                            store.onReadError.call(store, err, fileId, file);
                             res.end();
                         });
 

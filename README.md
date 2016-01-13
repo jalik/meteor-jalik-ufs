@@ -8,7 +8,7 @@ It currently only supports file system storage but it is possible to extend poss
 
 You can test the package by downloading and running [UFS-Example](https://github.com/jalik/ufs-example) which is simple demo of UploadFS.
 
-### Installation
+## Installation
 
 To install the package, execute this command in the root of your project :
 ```
@@ -20,21 +20,21 @@ If later you want to remove the package :
 meteor remove jalik:ufs
 ```
 
-### Plugins
+## Plugins
 
 As the package is modular, you can add support for custom stores.
 
 * [UploadFS.store.Local](https://github.com/jalik/jalik-ufs-local)
 * [UploadFS.store.GridFS](https://github.com/jalik/jalik-ufs-gridfs)
 
-### Introduction
+## Introduction
 
 In file uploading, you basically have a client and a server, I haven't change those things.
 So on the client side, you create an uploader for each file transfer needed, 
 while on the server side you only configure a store where the file will be saved.
 I'll use the `UploadFS.store.Local` store for the following examples.
 
-### Creating a Store
+## Creating a Store
 
 **The code below is available to the client and the server.**
 
@@ -57,11 +57,11 @@ Meteor.photosStore = new UploadFS.store.Local({
 });
 ```
 
-### Filtering uploads
+## Filtering uploads
 
 You can pass an `UploadFS.Filter` to a store to define restrictions on file uploads.
 Filter is tested before inserting a file in the collection and uses `Meteor.deny()`.
-If the file does not match the filter, it won't be inserted and so not be uploaded.
+If the file does not match the filter, it won't be inserted and will not be uploaded.
 
 ```js
 Meteor.photosStore = new UploadFS.store.Local({
@@ -70,6 +70,7 @@ Meteor.photosStore = new UploadFS.store.Local({
     path: '/uploads/photos',
     // Apply a filter to restrict file upload
     filter: new UploadFS.Filter({
+        minSize: 1,
         maxSize: 1024 * 1000 // 1MB,
         contentTypes: ['image/*'],
         extensions: ['jpg', 'png']
@@ -77,7 +78,23 @@ Meteor.photosStore = new UploadFS.store.Local({
 });
 ```
 
-### Transforming files
+The filter can be a function in which you need to throw an Error to stop insertion.
+
+```js
+Meteor.photosStore = new UploadFS.store.Local({
+    collection: Meteor.photos,
+    name: 'photos',
+    path: '/uploads/photos',
+    // Apply a filter to restrict file upload
+    filter: function(userId, file) {
+        if (!userId) {
+            throw new Meteor.Error(403, 'Forbidden');
+        }
+    }
+});
+```
+
+## Transforming files
 
 If you need to modify the file before it is saved to the store, you have to use the **transform** option.
 
@@ -99,7 +116,7 @@ Meteor.photosStore = new UploadFS.store.Local({
 });
 ```
 
-### Setting permissions
+## Setting permissions
 
 As the uploader will interact with the collection, you must define permission rules.
 By default, there is no restriction (except the filter) on insert, remove and update actions.
@@ -118,7 +135,7 @@ Meteor.photos.allow({
 });
 ```
 
-### Configuration
+## Configuration
 
 You can access and modify settings via `UploadFS.config`.
 
@@ -139,12 +156,12 @@ UploadFS.config.storesPath = 'uploads';
 UploadFS.config.tmpDir = '/tmp/uploads';
 ```
 
-### Security
+## Security
 
 When returning the file for a HTTP request on the endpoint, you can do some checks to decide whether or not the file should be sent to the client.
 This is done by defining the **onRead()** method on the store.
 
-**Note:** Since v0.3.5, every file has a token attribute, this token can be used as a password to access/display the file. Just be sure to not publish it if not needed. You can also change this token whenever you want making older links to be staled.
+**Note:** Since v0.3.5, every file has a token attribute when its transfer is complete, this token can be used as a password to access/display the file. Just be sure to not publish it if not needed. You can also change this token whenever you want making older links to be staled.
 
 ```html
 {{#with image}}
@@ -171,7 +188,7 @@ Meteor.photosStore = new UploadFS.store.Local({
 });
 ```
 
-### Server events
+## Server events
 
 Some events are triggered to allow you to do something at the right moment on server side.
 
@@ -187,7 +204,27 @@ Meteor.photosStore = new UploadFS.store.Local({
 });
 ```
 
-### Uploading files
+## Handling errors
+
+On server side, you can do something when there is a store IO error.
+
+```js
+Meteor.photosStore = new UploadFS.store.Local({
+    collection: Meteor.photos,
+    name: 'photos',
+    path: '/uploads/photos',
+    // Called when a read error happened
+    onReadError: function (err, fileId, file) {
+        console.error('Cannot read ' + file.name);
+    }
+    // Called when a write error happened
+    onWriteError: function (err, fileId, file) {
+        console.error('Cannot write ' + file.name);
+    }
+});
+```
+
+## Uploading files
 
 When the store on the server is configured, you can upload files to it.
 
@@ -262,9 +299,9 @@ Template.upload.events({
 });
 ```
 
-### Writing files
+## Writing files
 
-Sometimes you could need to write to the store directly on the server :
+Sometimes you could need to write to the store directly on the server without any client involved.
 
 ```js
 // Insert the file in database
@@ -280,7 +317,7 @@ store.write(inStream, fileId, function(err, file) {
 });
 ```
 
-### Displaying images
+## Displaying images
 
 After that, if everything went good, you have you file saved to the store and in database.
 You can get the file as usual and display it using the url attribute of the document.
@@ -311,7 +348,7 @@ Template.photos.helpers({
 });
 ```
 
-### Helpers
+## Template helpers
 
 Some helpers are available by default to help you work with files inside templates.
 

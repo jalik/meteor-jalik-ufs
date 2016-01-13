@@ -143,9 +143,10 @@ UploadFS.Uploader = function (options) {
                         if (offset < total) {
                             // Prepare the chunk
                             var chunk = new Uint8Array(data, offset, length);
+                            var progress = (offset + length) / total;
 
                             // Write the chunk to the store
-                            Meteor.call('ufsWrite', chunk, fileId, store.getName(), function (err, length) {
+                            Meteor.call('ufsWrite', chunk, fileId, store.getName(), progress, function (err, length) {
                                 if (err || !length) {
                                     // Retry until max tries is reach
                                     // But don't retry if these errors occur

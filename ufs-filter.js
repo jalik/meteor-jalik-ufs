@@ -11,7 +11,7 @@ UploadFS.Filter = function (options) {
         contentTypes: null,
         extensions: null,
         minSize: 1,
-        maxSize: 1024 * 1000 * 10
+        maxSize: 0
     }, options);
 
     // Check options
@@ -67,7 +67,6 @@ UploadFS.Filter = function (options) {
     };
 };
 
-
 /**
  * Checks the file
  * @param file
@@ -75,10 +74,10 @@ UploadFS.Filter = function (options) {
  */
 UploadFS.Filter.prototype.check = function (file) {
     // Check size
-    if (file.size < this.getMinSize()) {
+    if (file.size <= 0 || file.size < this.getMinSize()) {
         throw new Meteor.Error('file-too-small', 'The file is too small, min size is ' + this.getMinSize());
     }
-    if (file.size > this.getMaxSize()) {
+    if (this.getMaxSize() > 0 && file.size > this.getMaxSize()) {
         throw new Meteor.Error('file-too-large', 'The file is too large, max size is ' + this.getMaxSize());
     }
     // Check extension
@@ -105,7 +104,5 @@ function checkContentType(type, list) {
             return true;
         }
     }
-
     return false;
-
 }

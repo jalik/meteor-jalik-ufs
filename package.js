@@ -12,10 +12,11 @@ Package.onUse(function (api) {
     api.versionsFrom('1.1.0.2');
     api.use('check');
     api.use('matb33:collection-hooks@0.7.13');
-    api.use(['minimongo', 'mongo-livedata', 'reactive-var', 'templating'], 'client');
-    api.use('mongo', 'server');
-    api.use('webapp', 'server');
+    api.use('mongo');
+    api.use('reactive-var', 'client');
+    api.use('templating', 'client');
     api.use('underscore');
+    api.use('webapp', 'server');
 
     api.addFiles('ufs.js');
     api.addFiles('ufs-config.js');

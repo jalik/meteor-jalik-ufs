@@ -13,6 +13,8 @@ UploadFS.Store = function (options) {
         name: null,
         onFinishUpload: null,
         onRead: null,
+        onReadError: null,
+        onWriteError: null,
         transformRead: null,
         transformWrite: null
     }, options);
@@ -32,8 +34,8 @@ UploadFS.Store = function (options) {
     if (!(options.collection instanceof Mongo.Collection)) {
         throw new TypeError('collection is not a Mongo.Collection');
     }
-    if (options.filter && !(options.filter instanceof UploadFS.Filter)) {
-        throw new TypeError('filter is not a UploadFS.Filter');
+    if (options.filter && !(options.filter instanceof UploadFS.Filter) && typeof options.filter !== 'function') {
+        throw new TypeError('filter is not an UploadFS.Filter or function');
     }
     if (typeof options.name !== 'string') {
         throw new TypeError('name is not a string');
@@ -47,6 +49,12 @@ UploadFS.Store = function (options) {
     if (options.onRead && typeof options.onRead !== 'function') {
         throw new TypeError('onRead is not a function');
     }
+    if (options.onReadError && typeof options.onReadError !== 'function') {
+        throw new TypeError('onReadError is not a function');
+    }
+    if (options.onWriteError && typeof options.onWriteError !== 'function') {
+        throw new TypeError('onWriteError is not a function');
+    }
     if (options.transformRead && typeof options.transformRead !== 'function') {
         throw new TypeError('transformRead is not a function');
     }
@@ -55,8 +63,10 @@ UploadFS.Store = function (options) {
     }
 
     // Public attributes
-    self.onFinishUpload = options.onFinishUpload ? options.onFinishUpload : self.onFinishUpload;
-    self.onRead = options.onRead ? options.onRead : self.onRead;
+    self.onFinishUpload = options.onFinishUpload || self.onFinishUpload;
+    self.onRead = options.onRead || self.onRead;
+    self.onReadError = options.onReadError || self.onReadError;
+    self.onWriteError = options.onWriteError || self.onWriteError;
 
     // Private attributes
     var collection = options.collection;
@@ -145,45 +155,58 @@ UploadFS.Store = function (options) {
         self.write = function (rs, fileId, callback) {
             var file = self.getCollection().findOne(fileId);
             var ws = self.getWriteStream(fileId, file);
-
-            rs.on('error', function (err) {
-                callback.call(self, err);
-                console.error(err);
+            var errorHandler = function (err) {
+                ws.end(null);
                 self.delete(fileId);
-            });
-
-            ws.on('error', function (err) {
+                self.onWriteError.call(self, err, fileId, file);
                 callback.call(self, err);
-                console.error(err);
-                self.delete(fileId);
-            });
+            };
 
+            rs.on('error', errorHandler);
+            ws.on('error', errorHandler);
             ws.on('finish', Meteor.bindEnvironment(function () {
-                // Set file attribute
-                file.complete = true;
-                file.uploading = false;
-                file.uploadedAt = new Date();
-                file.url = self.getFileURL(fileId);
-
-                // Sets the file URL when file transfer is complete,
-                // this way, the image will loads entirely.
-                self.getCollection().update(fileId, {
-                    $set: {
-                        complete: true,
-                        token: UploadFS.generateToken(),
-                        uploading: false,
-                        uploadedAt: file.uploadedAt,
-                        url: file.url
-                    }
+                // Set file size
+                var size = 0;
+                var is = self.getReadStream(fileId, file);
+                var os = new stream.PassThrough();
+                is.on('error', errorHandler);
+                os.on('error', errorHandler);
+                is.on('data', function (data) {
+                    size += data.length;
                 });
+                is.on('end', Meteor.bindEnvironment(function () {
+                    // Set file attribute
+                    file.complete = true;
+                    file.progress = 1.0;
+                    file.size = size;
+                    file.token = UploadFS.generateToken();
+                    file.uploading = false;
+                    file.uploadedAt = new Date();
+                    file.url = self.getFileURL(fileId);
 
-                // Return file info
-                callback.call(self, null, file);
+                    // Sets the file URL when file transfer is complete,
+                    // this way, the image will loads entirely.
+                    self.getCollection().update(fileId, {
+                        $set: {
+                            complete: file.complete,
+                            completed: file.completed,
+                            size: file.size,
+                            token: file.token,
+                            uploading: file.uploading,
+                            uploadedAt: file.uploadedAt,
+                            url: file.url
+                        }
+                    });
 
-                // Execute callback
-                if (typeof self.onFinishUpload == 'function') {
-                    self.onFinishUpload(file);
-                }
+                    // Return file info
+                    callback.call(self, null, file);
+
+                    // Execute callback
+                    if (typeof self.onFinishUpload == 'function') {
+                        self.onFinishUpload(file);
+                    }
+                }));
+                is.pipe(os);
             }));
 
             // Simulate write speed
@@ -220,7 +243,14 @@ UploadFS.Store = function (options) {
     collection.deny({
         // Test filter on file insertion
         insert: function (userId, file) {
-            filter && filter.check(file);
+            if (filter) {
+                if (filter instanceof UploadFS.Filter) {
+                    filter.check(file);
+                }
+                if (typeof filter === 'function') {
+                    filter.call(self, userId, file);
+                }
+            }
             return typeof options.insert === 'function'
                 && !options.insert.apply(this, arguments);
         }
@@ -292,5 +322,27 @@ if (Meteor.isServer) {
      */
     UploadFS.Store.prototype.onRead = function (fileId, file, request, response) {
         return true;
+    };
+
+    /**
+     * Callback for read errors
+     * @param err
+     * @param fileId
+     * @param file
+     * @return boolean
+     */
+    UploadFS.Store.prototype.onReadError = function (err, fileId, file) {
+        console.error('Error reading file ' + fileId + ' : ' + err.message);
+    };
+
+    /**
+     * Callback for write errors
+     * @param err
+     * @param fileId
+     * @param file
+     * @return boolean
+     */
+    UploadFS.Store.prototype.onWriteError = function (err, fileId, file) {
+        console.error('Error writing file ' + fileId + ' : ' + err.message);
     };
 }
