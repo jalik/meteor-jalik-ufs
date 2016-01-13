@@ -161,37 +161,30 @@ if (Meteor.isServer) {
             }
 
             d.run(function () {
-                // Create a temporary output stream
-                var ws = new stream.PassThrough();
-
-                // Catch write errors
-                ws.on('error', function (err) {
-                    console.error(err);
-                    res.end();
-                });
-
-                // Close output stream at the end
-                ws.on('close', function () {
-                    ws.emit('end');
-                });
-
                 if (typeof store.onRead === 'function') {
                     // Check if the file can be accessed
                     if (store.onRead.call(store, fileId, file, req, res)) {
                         // Open the file stream
                         var rs = store.getReadStream(fileId, file);
-
-                        // Catch read errors
-                        rs.on('error', function (err) {
-                            store.onReadError.call(store, err, fileId, file);
-                            res.end();
-                        });
-
+                        var ws = new stream.PassThrough();
                         var accept = req.headers['accept-encoding'] || '';
                         var headers = {
                             'Content-Type': file.type,
                             'Content-Length': file.size
                         };
+
+                        rs.on('error', function (err) {
+                            store.onReadError.call(store, err, fileId, file);
+                            res.end();
+                        });
+                        ws.on('error', function (err) {
+                            store.onReadError.call(store, err, fileId, file);
+                            res.end();
+                        });
+                        ws.on('close', function () {
+                            // Close output stream at the end
+                            ws.emit('end');
+                        });
 
                         // Transform stream
                         store.transformRead(rs, ws, fileId, file, req, headers);

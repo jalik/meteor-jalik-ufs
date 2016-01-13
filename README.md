@@ -224,6 +224,24 @@ Meteor.photosStore = new UploadFS.store.Local({
 });
 ```
 
+## Writing files
+
+Sometimes you could need to write to the store directly on the server without any client involved.
+
+```js
+// Insert the file in database
+var fileId = store.create(file);
+
+// Save the file to the store
+store.write(inStream, fileId, function(err, file) {
+    if (err) {
+        console.error(err);
+    }else {
+        console.log('file saved to store');
+    }
+});
+```
+
 ## Uploading files
 
 When the store on the server is configured, you can upload files to it.
@@ -299,24 +317,6 @@ Template.upload.events({
 });
 ```
 
-## Writing files
-
-Sometimes you could need to write to the store directly on the server without any client involved.
-
-```js
-// Insert the file in database
-var fileId = store.create(file);
-
-// Save the file to the store
-store.write(inStream, fileId, function(err, file) {
-    if (err) {
-        console.error(err);
-    }else {
-        console.log('file saved to store');
-    }
-});
-```
-
 ## Displaying images
 
 After that, if everything went good, you have you file saved to the store and in database.
@@ -330,6 +330,7 @@ Here is the template to display a list of photos :
         {{#each photos}}
             {{#if uploading}}
                 <img src="/images/spinner.gif" title="{{name}}">
+                <span>{{completed}}%</span>
             {{else}}
                 <img src="{{url}}" title="{{name}}">
             {{/if}}
@@ -342,6 +343,9 @@ And there the code to load the file :
 
 ```js
 Template.photos.helpers({
+    completed: function() {
+        return Math.round(this.progress * 100);
+    },
     photos: function() {
         return Meteor.photos.find();
     }

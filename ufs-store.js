@@ -221,9 +221,10 @@ UploadFS.Store = function (options) {
 
     collection.before.insert(function (userId, file) {
         file.complete = false;
-        file.uploading = true;
-        file.store = name;
         file.extension = file.name.substr((~-file.name.lastIndexOf('.') >>> 0) + 2).toLowerCase();
+        file.progress = 0;
+        file.store = name;
+        file.uploading = true;
         file.userId = userId;
     });
 
