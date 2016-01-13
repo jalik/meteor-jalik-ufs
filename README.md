@@ -161,6 +161,28 @@ PhotosStore = new UploadFS.store.Local({
 });
 ```
 
+The copies contains 2 fields that links to the original file, `originalId` and `originalStore`.
+So if you want to display a thumbnail instead of the original file :
+
+```html
+<template name="photos">
+    {{#each photos}}
+        <img src="{{thumb.url}}">
+    {{/each}}
+</template>
+```
+
+```js
+Template.photos.helpers({
+    photos: function() {
+        return Photos.find();
+    },
+    thumb: function() {
+        return Thumbnails.findOne({originalId: this._id});
+    }
+});
+```
+
 ## Setting permissions
 
 If you don't want anyone to do anything, you must define permission rules.
