@@ -145,29 +145,33 @@ UploadFS.Uploader = function (options) {
                             var chunk = new Uint8Array(data, offset, length);
                             var progress = (offset + length) / total;
 
-                            // Write the chunk to the store
-                            Meteor.call('ufsWrite', chunk, fileId, store.getName(), progress, function (err, length) {
-                                if (err || !length) {
-                                    // Retry until max tries is reach
-                                    // But don't retry if these errors occur
-                                    if (tries < self.maxTries && !_.contains([400, 404], err.error)) {
-                                        tries += 1;
+                            // Simulate write speed
+                            Meteor.setTimeout(function () {
+                                // Write the chunk to the store
+                                Meteor.call('ufsWrite', chunk, fileId, store.getName(), progress, function (err, length) {
+                                    if (err || !length) {
+                                        // Retry until max tries is reach
+                                        // But don't retry if these errors occur
+                                        if (tries < self.maxTries && !_.contains([400, 404], err.error)) {
+                                            tries += 1;
 
-                                        // Wait 1 sec before retrying
-                                        Meteor.setTimeout(function () {
-                                            sendChunk();
-                                        }, 1000);
+                                            // Wait 1 sec before retrying
+                                            Meteor.setTimeout(function () {
+                                                sendChunk();
+                                            }, 1000);
 
+                                        } else {
+                                            self.abort();
+                                            self.onError.call(self, err);
+                                        }
                                     } else {
-                                        self.abort();
-                                        self.onError.call(self, err);
+                                        offset += length;
+                                        loaded.set(loaded.get() + length);
+                                        sendChunk();
                                     }
-                                } else {
-                                    offset += length;
-                                    loaded.set(loaded.get() + length);
-                                    sendChunk();
-                                }
-                            });
+                                });
+                            }, parseInt(UploadFS.config.simulateUploadDelay) || 0);
+
                         } else {
                             // Finish the upload by telling the store the upload is complete
                             Meteor.call('ufsComplete', fileId, store.getName(), function (err, uploadedFile) {

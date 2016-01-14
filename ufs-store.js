@@ -162,14 +162,14 @@ UploadFS.Store = function (options) {
         self.write = function (rs, fileId, callback) {
             var file = self.getCollection().findOne(fileId);
             var ws = self.getWriteStream(fileId, file);
-            var errorHandler = function (err) {
+
+            var errorHandler = Meteor.bindEnvironment(function (err) {
                 self.getCollection().remove(fileId);
                 self.onWriteError.call(self, err, fileId, file);
                 callback.call(self, err);
-            };
+            });
 
-            rs.on('error', Meteor.bindEnvironment(errorHandler));
-            ws.on('error', Meteor.bindEnvironment(errorHandler));
+            ws.on('error', errorHandler);
             ws.on('finish', Meteor.bindEnvironment(function () {
                 var size = 0;
                 var from = self.getReadStream(fileId, file);
@@ -201,8 +201,6 @@ UploadFS.Store = function (options) {
                         }
                     });
 
-                    // todo move copy code here
-
                     // Return file info
                     callback.call(self, null, file);
 
@@ -210,43 +208,43 @@ UploadFS.Store = function (options) {
                     if (typeof self.onFinishUpload == 'function') {
                         self.onFinishUpload.call(self, file);
                     }
+
+                    // Simulate write speed
+                    if (UploadFS.config.simulateWriteDelay) {
+                        Meteor._sleepForMs(UploadFS.config.simulateWriteDelay);
+                    }
+
+                    // Copy file to other stores
+                    if (options.copyTo instanceof Array) {
+                        for (var i = 0; i < options.copyTo.length; i += 1) {
+                            var copyStore = options.copyTo[i];
+                            var copyId = null;
+                            var copy = _.omit(file, '_id', 'url');
+                            copy.originalStore = self.getName();
+                            copy.originalId = fileId;
+
+                            try {
+                                // Create the copy in the collection
+                                copyId = copyStore.create(copy);
+
+                                (function (copyStore, copyId, copy) {
+                                    // Write the copy to the store
+                                    var cs = self.getReadStream(fileId, file);
+                                    copyStore.write(cs, copyId, Meteor.bindEnvironment(function (err) {
+                                        if (err) {
+                                            copyStore.getCollection().remove(copyId);
+                                            self.onCopyError.call(self, err, copyId, copy);
+                                        }
+                                    }));
+                                })(copyStore, copyId, copy);
+                            } catch (err) {
+                                copyStore.getCollection().remove(copyId);
+                                self.onCopyError.call(self, err, copyId, copy);
+                            }
+                        }
+                    }
                 }));
             }));
-
-            // Simulate write speed
-            if (UploadFS.config.simulateWriteDelay) {
-                Meteor._sleepForMs(UploadFS.config.simulateWriteDelay);
-            }
-
-            // todo execute copy after original file saved
-            // Copy file to other stores
-            if (options.copyTo instanceof Array) {
-                for (var i = 0; i < options.copyTo.length; i += 1) {
-                    var copyStore = options.copyTo[i];
-                    var copyId = null;
-                    var copy = _.omit(file, '_id', 'url');
-                    copy.originalStore = self.getName();
-                    copy.originalId = fileId;
-
-                    try {
-                        // Create the copy
-                        copyId = copyStore.create(copy);
-
-                        (function (copyStore, copyId, copy) {
-                            // Write the copy
-                            copyStore.write(rs, copyId, Meteor.bindEnvironment(function (err) {
-                                if (err) {
-                                    copyStore.getCollection().remove(copyId);
-                                    self.onCopyError.call(self, err, copyId, copy);
-                                }
-                            }));
-                        })(copyStore, copyId, copy);
-                    } catch (err) {
-                        copyStore.getCollection().remove(copyId);
-                        self.onCopyError.call(self, err, copyId, copy);
-                    }
-                }
-            }
 
             // Execute transformation
             self.transformWrite(rs, ws, fileId, file);

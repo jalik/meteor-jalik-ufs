@@ -41,6 +41,9 @@ You can access and modify settings via `UploadFS.config`.
 // Activate simulation for slowing file reading
 UploadFS.config.simulateReadDelay = 1000; // 1 sec
 
+// Activate simulation for slowing file uploading
+UploadFS.config.simulateUploadDelay = 1000; // 1 sec
+
 // Activate simulation for slowing file writing
 UploadFS.config.simulateWriteDelay = 2000; // 2 sec
 

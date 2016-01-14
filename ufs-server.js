@@ -21,6 +21,8 @@ if (Meteor.isServer) {
             check(fileId, String);
             check(storeName, String);
 
+            this.unblock();
+
             var store = UploadFS.getStore(storeName);
 
             // Check arguments
@@ -43,20 +45,22 @@ if (Meteor.isServer) {
                 autoClose: true
             });
 
+            rs.on('error', Meteor.bindEnvironment(function () {
+                store.getCollection().remove(fileId);
+            }));
+
             // Save the file in the store
-            store.write(rs, fileId, function (err, file) {
+            store.write(rs, fileId, Meteor.bindEnvironment(function (err, file) {
+                fs.unlink(tmpFile, function (err) {
+                    err && console.error(err.message);
+                });
+
                 if (err) {
-                    // Delete the temporary file
-                    Meteor.setTimeout(function () {
-                        fs.unlink(tmpFile);
-                    }, 500);
                     fut.throw(err);
                 } else {
                     fut.return(file);
-                    fs.unlink(tmpFile);
                 }
-            });
-
+            }));
             return fut.wait();
         },
 
@@ -71,6 +75,8 @@ if (Meteor.isServer) {
         ufsWrite: function (chunk, fileId, storeName, progress) {
             check(fileId, String);
             check(storeName, String);
+
+            this.unblock();
 
             // Check arguments
             if (!(chunk instanceof Uint8Array)) {
