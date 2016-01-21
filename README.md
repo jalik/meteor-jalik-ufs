@@ -42,7 +42,7 @@ You can access and modify settings via `UploadFS.config`.
 UploadFS.config.simulateReadDelay = 1000; // 1 sec
 
 // Activate simulation for slowing file uploading
-UploadFS.config.simulateUploadDelay = 1000; // 1 sec
+UploadFS.config.simulateUploadSpeed = 128000; // 128kb/s
 
 // Activate simulation for slowing file writing
 UploadFS.config.simulateWriteDelay = 2000; // 2 sec
@@ -100,7 +100,7 @@ PhotosStore = new UploadFS.store.Local({
 });
 ```
 
-The filter can be a function in which you need to throw an Error to stop insertion.
+If you need a more advanced filter, you can pass a method using the `onCheck` option.
 
 ```js
 PhotosStore = new UploadFS.store.Local({
@@ -108,11 +108,14 @@ PhotosStore = new UploadFS.store.Local({
     name: 'photos',
     path: '/uploads/photos',
     // Apply a filter to restrict file upload
-    filter: function(userId, file) {
-        if (!userId) {
-            throw new Meteor.Error(403, 'Forbidden');
+    filter: new UploadFS.Filter({
+        onCheck: function(file) {
+            if (file.extension !== 'png') {
+                return false;
+            }
+            return true;
         }
-    }
+    })
 });
 ```
 
@@ -141,7 +144,7 @@ PhotosStore = new UploadFS.store.Local({
 
 ## Copying files (since v0.3.6)
 
-You can copy files to other stores, it could be for backup or just to have alternative versions of the same file (eg: thumbnails).
+You can copy files to other stores on the fly, it could be for backup or just to have alternative versions of the same file (eg: thumbnails).
 
 ```js
 Thumbnails = new Mongo.Collection('thumbnails');
@@ -164,8 +167,16 @@ PhotosStore = new UploadFS.store.Local({
 });
 ```
 
-The copies contains 2 fields that links to the original file, `originalId` and `originalStore`.
-So if you want to display a thumbnail instead of the original file :
+You can also manually copy a file to another store by using the `copy()` method.
+
+```js
+PhotosStore.copy(fileId, BackupStore, function(err, copyId, copyFile) {
+    !err && console.log(fileId + ' has been copied as ' + copyId);
+});
+```
+
+Copies contains 2 fields that links to the original file, `originalId` and `originalStore`.
+So if you want to display a thumbnail instead of the original file you would do like this :
 
 ```html
 <template name="photos">
@@ -205,7 +216,7 @@ Photos.allow({
 });
 ```
 
-## Filtering file access
+## Securing file access
 
 When returning the file for a HTTP request, you can do some checks to decide whether or not the file should be sent to the client.
 This is done by defining the `onRead()` method on the store.
@@ -329,8 +340,15 @@ Template.upload.events({
             var upload = new UploadFS.Uploader({
                 // This is where the uploader will save the file
                 store: PhotosStore,
+                // Optimize speed transfer by increasing/decreasing chunk size automatically
+                adaptive: true,
+                // Define the upload capacity (if upload speed is 1MB/s, then it will try to maintain upload at 80%, so 800KB/s)
+                // (used only if adaptive = true)
+                capacity: 0.8, // 80%
                 // The size of each chunk sent to the server
-                chunkSize: 1024 * 8,
+                chunkSize: 8 * 1024, // 8k
+                // The max chunk size (used only if adaptive = true)
+                maxChunkSize: 128 * 1024, // 128k
                 // This tells how many tries to do if an error occurs during upload
                 maxTries: 5,
                 // The file data

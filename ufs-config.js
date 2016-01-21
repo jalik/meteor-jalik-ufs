@@ -8,7 +8,7 @@ UploadFS.Config = function (options) {
     options = _.extend({
         https: false,
         simulateReadDelay: 0,
-        simulateUploadDelay: 0,
+        simulateUploadSpeed: 0,
         simulateWriteDelay: 0,
         storesPath: 'ufs',
         tmpDir: '/tmp/ufs'
@@ -21,8 +21,8 @@ UploadFS.Config = function (options) {
     if (typeof options.simulateReadDelay !== 'number') {
         throw new Meteor.Error('simulateReadDelay is not a number');
     }
-    if (typeof options.simulateUploadDelay !== 'number') {
-        throw new Meteor.Error('simulateUploadDelay is not a number');
+    if (typeof options.simulateUploadSpeed !== 'number') {
+        throw new Meteor.Error('simulateUploadSpeed is not a number');
     }
     if (typeof options.simulateWriteDelay !== 'number') {
         throw new Meteor.Error('simulateWriteDelay is not a number');
@@ -37,7 +37,7 @@ UploadFS.Config = function (options) {
     // Public attributes
     this.https = options.https;
     this.simulateReadDelay = parseInt(options.simulateReadDelay);
-    this.simulateUploadDelay = parseInt(options.simulateUploadDelay);
+    this.simulateUploadSpeed = parseInt(options.simulateUploadSpeed);
     this.simulateWriteDelay = parseInt(options.simulateWriteDelay);
     this.storesPath = options.storesPath;
     this.tmpDir = options.tmpDir;
@@ -50,10 +50,10 @@ UploadFS.Config = function (options) {
 UploadFS.Config.prototype.simulateReadDelay = 0;
 
 /**
- * Simulation upload delay in milliseconds
+ * Simulation upload speed in milliseconds
  * @type {number}
  */
-UploadFS.Config.prototype.simulateUploadDelay = 0;
+UploadFS.Config.prototype.simulateUploadSpeed = 0;
 
 /**
  * Simulation write delay in milliseconds

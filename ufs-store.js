@@ -35,8 +35,8 @@ UploadFS.Store = function (options) {
     if (!(options.collection instanceof Mongo.Collection)) {
         throw new TypeError('collection is not a Mongo.Collection');
     }
-    if (options.filter && !(options.filter instanceof UploadFS.Filter) && typeof options.filter !== 'function') {
-        throw new TypeError('filter is not an UploadFS.Filter or function');
+    if (options.filter && !(options.filter instanceof UploadFS.Filter)) {
+        throw new TypeError('filter is not an UploadFS.Filter');
     }
     if (typeof options.name !== 'string') {
         throw new TypeError('name is not a string');
@@ -75,6 +75,7 @@ UploadFS.Store = function (options) {
 
     // Private attributes
     var collection = options.collection;
+    var copyTo = options.copyTo;
     var filter = options.filter;
     var name = options.name;
     var transformRead = options.transformRead;
@@ -82,6 +83,17 @@ UploadFS.Store = function (options) {
 
     // Add the store to the list
     UploadFS.getStores()[name] = self;
+
+    /**
+     * Creates the file in the collection
+     * @param file
+     * @return {string}
+     */
+    self.create = function (file) {
+        check(file, Object);
+        file.store = name;
+        return self.getCollection().insert(file);
+    };
 
     /**
      * Returns the collection
@@ -107,18 +119,49 @@ UploadFS.Store = function (options) {
         return name;
     };
 
+
     if (Meteor.isServer) {
+
         /**
-         * Creates the file in the collection
-         * @param file
-         * @return {string}
+         * Copies the file to a store
+         * @param fileId
+         * @param store
+         * @param callback
          */
-        self.create = function (file) {
-            file.complete = false;
-            file.progress = 0;
-            file.store = name;
-            file.uploading = true;
-            return self.getCollection().insert(file);
+        self.copy = function (fileId, store, callback) {
+            check(fileId, String);
+
+            if (!(store instanceof UploadFS.Store)) {
+                throw new TypeError('store is not an UploadFS.store.Store');
+            }
+
+            // Get original file
+            var file = self.getCollection().findOne(fileId);
+            if (!file) {
+                throw new Meteor.Error(404, 'File not found');
+            }
+
+            // Prepare copy
+            var copy = _.omit(file, '_id', 'url');
+            copy.originalStore = self.getName();
+            copy.originalId = fileId;
+
+            // Create the copy
+            var copyId = store.create(copy);
+
+            // Get original stream
+            var rs = self.getReadStream(fileId, file);
+
+            // Copy file data
+            store.write(rs, copyId, Meteor.bindEnvironment(function (err) {
+                if (err) {
+                    store.getCollection().remove(copyId);
+                    self.onCopyError.call(self, err, fileId, file);
+                }
+                if (typeof callback === 'function') {
+                    callback.call(self, err, copyId, copy, store);
+                }
+            }));
         };
 
         /**
@@ -215,31 +258,12 @@ UploadFS.Store = function (options) {
                     }
 
                     // Copy file to other stores
-                    if (options.copyTo instanceof Array) {
-                        for (var i = 0; i < options.copyTo.length; i += 1) {
-                            var copyStore = options.copyTo[i];
-                            var copyId = null;
-                            var copy = _.omit(file, '_id', 'url');
-                            copy.originalStore = self.getName();
-                            copy.originalId = fileId;
+                    if (copyTo instanceof Array) {
+                        for (var i = 0; i < copyTo.length; i += 1) {
+                            var store = copyTo[i];
 
-                            try {
-                                // Create the copy in the collection
-                                copyId = copyStore.create(copy);
-
-                                (function (copyStore, copyId, copy) {
-                                    // Write the copy to the store
-                                    var cs = self.getReadStream(fileId, file);
-                                    copyStore.write(cs, copyId, Meteor.bindEnvironment(function (err) {
-                                        if (err) {
-                                            copyStore.getCollection().remove(copyId);
-                                            self.onCopyError.call(self, err, copyId, copy);
-                                        }
-                                    }));
-                                })(copyStore, copyId, copy);
-                            } catch (err) {
-                                copyStore.getCollection().remove(copyId);
-                                self.onCopyError.call(self, err, copyId, copy);
+                            if (!store.getFilter() || store.getFilter().isValid(file)) {
+                                self.copy(fileId, store);
                             }
                         }
                     }
@@ -251,47 +275,56 @@ UploadFS.Store = function (options) {
         };
     }
 
+    // Code executed before inserting file
     collection.before.insert(function (userId, file) {
+        if (typeof file.name !== 'string' || !file.name.length) {
+            throw new Meteor.Error(400, "file name not defined");
+        }
+        if (typeof file.store !== 'string' || !file.store.length) {
+            throw new Meteor.Error(400, "file store not defined");
+        }
         file.complete = false;
         file.extension = file.name && file.name.substr((~-file.name.lastIndexOf('.') >>> 0) + 2).toLowerCase();
         file.progress = 0;
+        file.size = file.size || 0;
         file.uploading = true;
         file.userId = file.userId || userId;
     });
 
+    // Code executed after removing file
     collection.after.remove(function (userId, file) {
         if (Meteor.isServer) {
-            if (options.copyTo instanceof Array) {
-                for (var i = 0; i < options.copyTo.length; i += 1) {
+            if (copyTo instanceof Array) {
+                for (var i = 0; i < copyTo.length; i += 1) {
                     // Remove copies in stores
-                    options.copyTo[i].getCollection().remove({originalId: file._id});
+                    copyTo[i].getCollection().remove({originalId: file._id});
                 }
             }
         }
     });
 
+    // Code executed before removing file
     collection.before.remove(function (userId, file) {
         if (Meteor.isServer) {
             // Delete the physical file in the store
             self.delete(file._id);
 
-            // Delete the temporary file if uploading
-            if (file.uploading || !file.complete) {
-                fs.unlink(UploadFS.getTempFilePath(file._id));
-            }
+            var tmpFile = UploadFS.getTempFilePath(file._id);
+
+            // Delete the temp file
+            fs.stat(tmpFile, function (err) {
+                !err && fs.unlink(tmpFile, function (err) {
+                    err && console.error('ufs: cannot delete temp file at ' + tmpFile + ' (' + err.message + ')');
+                });
+            });
         }
     });
 
     collection.deny({
         // Test filter on file insertion
         insert: function (userId, file) {
-            if (filter) {
-                if (filter instanceof UploadFS.Filter) {
-                    filter.check(file);
-                }
-                if (typeof filter === 'function') {
-                    filter.call(self, userId, file);
-                }
+            if (filter instanceof UploadFS.Filter) {
+                filter.check(file);
             }
             return typeof options.insert === 'function'
                 && !options.insert.apply(this, arguments);
@@ -307,7 +340,7 @@ UploadFS.Store.prototype.getFileURL = function (fileId) {
     var file = this.getCollection().findOne(fileId, {
         fields: {name: 1}
     });
-    return file && this.getURL() + '/' + fileId + '/' + file.name;
+    return file && this.getURL() + '/' + fileId + '/' + encodeURIComponent(file.name);
 };
 
 /**
@@ -355,7 +388,7 @@ if (Meteor.isServer) {
      * @return boolean
      */
     UploadFS.Store.prototype.onCopyError = function (err, fileId, file) {
-        console.error('Error copying file ' + fileId + ' : ' + err.message);
+        console.error('ufs: cannot copy file "' + fileId + '" (' + err.message + ')');
     };
 
     /**
@@ -385,7 +418,7 @@ if (Meteor.isServer) {
      * @return boolean
      */
     UploadFS.Store.prototype.onReadError = function (err, fileId, file) {
-        console.error('Error reading file ' + fileId + ' : ' + err.message);
+        console.error('ufs: cannot read file "' + fileId + '" (' + err.message + ')');
     };
 
     /**
@@ -396,6 +429,6 @@ if (Meteor.isServer) {
      * @return boolean
      */
     UploadFS.Store.prototype.onWriteError = function (err, fileId, file) {
-        console.error('Error writing file ' + fileId + ' : ' + err.message);
+        console.error('ufs: cannot write file "' + fileId + '" (' + err.message + ')');
     };
 }

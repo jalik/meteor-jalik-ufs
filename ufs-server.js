@@ -6,9 +6,27 @@ if (Meteor.isServer) {
     stream = Npm.require('stream');
     zlib = Npm.require('zlib');
 
-    // Create the temporary upload dir
     Meteor.startup(function () {
-        createTempDir();
+        var path = UploadFS.config.tmpDir;
+        var mode = '0744';
+
+        fs.stat(path, function (err) {
+            if (err) {
+                // Create the temp directory
+                mkdirp(path, {mode: mode}, function (err) {
+                    if (err) {
+                        console.error('ufs: cannot create temp directory at ' + path + ' (' + err.message + ')');
+                    } else {
+                        console.log('ufs: temp directory created at ' + path);
+                    }
+                });
+            } else {
+                // Set directory permissions
+                fs.chmod(path, mode, function (err) {
+                    err && console.error('ufs: cannot set temp directory permissions ' + mode + ' (' + err.message + ')');
+                });
+            }
+        });
     });
 
     Meteor.methods({
@@ -21,15 +39,13 @@ if (Meteor.isServer) {
             check(fileId, String);
             check(storeName, String);
 
+            // Allow other uploads to run concurrently
             this.unblock();
 
             var store = UploadFS.getStore(storeName);
-
-            // Check arguments
             if (!store) {
                 throw new Meteor.Error(404, 'store "' + storeName + '" does not exist');
             }
-
             // Check that file exists and is owned by current user
             if (store.getCollection().find({_id: fileId, userId: this.userId}).count() < 1) {
                 throw new Meteor.Error(404, 'file "' + fileId + '" does not exist');
@@ -38,7 +54,7 @@ if (Meteor.isServer) {
             var fut = new Future();
             var tmpFile = UploadFS.getTempFilePath(fileId);
 
-            // Get the temporary file
+            // Get the temp file
             var rs = fs.createReadStream(tmpFile, {
                 flags: 'r',
                 encoding: null,
@@ -49,10 +65,10 @@ if (Meteor.isServer) {
                 store.getCollection().remove(fileId);
             }));
 
-            // Save the file in the store
+            // Save file in the store
             store.write(rs, fileId, Meteor.bindEnvironment(function (err, file) {
                 fs.unlink(tmpFile, function (err) {
-                    err && console.error(err.message);
+                    err && console.error('ufs: cannot delete temp file ' + tmpFile + ' (' + err.message + ')');
                 });
 
                 if (err) {
@@ -99,10 +115,13 @@ if (Meteor.isServer) {
             var fut = new Future();
             var tmpFile = UploadFS.getTempFilePath(fileId);
 
+            // Save the chunk
             fs.appendFile(tmpFile, new Buffer(chunk), Meteor.bindEnvironment(function (err) {
                 if (err) {
-                    console.error(err.message);
-                    fs.unlink(tmpFile);
+                    console.error('ufs: cannot write chunk of file "' + fileId + '" (' + err.message + ')');
+                    fs.unlink(tmpFile, function (err) {
+                        err && console.error('ufs: cannot delete temp file ' + tmpFile + ' (' + err.message + ')');
+                    });
                     fut.throw(err);
                 } else {
                     // Update completed state
@@ -121,7 +140,7 @@ if (Meteor.isServer) {
     var d = domain.create();
 
     d.on('error', function (err) {
-        console.error(err.message);
+        console.error('ufs: ' + err.message);
     });
 
     // Listen HTTP requests to serve files
@@ -143,8 +162,16 @@ if (Meteor.isServer) {
             // Get store
             var storeName = match[1];
             var store = UploadFS.getStore(storeName);
+
             if (!store) {
                 res.writeHead(404);
+                res.end();
+                return;
+            }
+
+            if (typeof store.onRead !== 'function') {
+                console.error('ufs: store "' + storeName + '" onRead is not a function');
+                res.writeHead(500);
                 res.end();
                 return;
             }
@@ -167,61 +194,54 @@ if (Meteor.isServer) {
             }
 
             d.run(function () {
-                if (typeof store.onRead === 'function') {
-                    // Check if the file can be accessed
-                    if (store.onRead.call(store, fileId, file, req, res)) {
-                        // Open the file stream
-                        var rs = store.getReadStream(fileId, file);
-                        var ws = new stream.PassThrough();
+                // Check if the file can be accessed
+                if (store.onRead.call(store, fileId, file, req, res)) {
+                    // Open the file stream
+                    var rs = store.getReadStream(fileId, file);
+                    var ws = new stream.PassThrough();
 
-                        rs.on('error', function (err) {
-                            store.onReadError.call(store, err, fileId, file);
-                            res.end();
-                        });
-                        ws.on('error', function (err) {
-                            store.onReadError.call(store, err, fileId, file);
-                            res.end();
-                        });
-                        ws.on('close', function () {
-                            // Close output stream at the end
-                            ws.emit('end');
-                        });
-
-                        var accept = req.headers['accept-encoding'] || '';
-                        var headers = {
-                            'Content-Type': file.type,
-                            'Content-Length': file.size
-                        };
-
-                        // Transform stream
-                        store.transformRead(rs, ws, fileId, file, req, headers);
-
-                        // Compress data using gzip
-                        if (accept.match(/\bgzip\b/)) {
-                            headers['Content-Encoding'] = 'gzip';
-                            delete headers['Content-Length'];
-                            res.writeHead(200, headers);
-                            ws.pipe(zlib.createGzip()).pipe(res);
-                        }
-                        // Compress data using deflate
-                        else if (accept.match(/\bdeflate\b/)) {
-                            headers['Content-Encoding'] = 'deflate';
-                            delete headers['Content-Length'];
-                            res.writeHead(200, headers);
-                            ws.pipe(zlib.createDeflate()).pipe(res);
-                        }
-                        // Send raw data
-                        else {
-                            res.writeHead(200, headers);
-                            ws.pipe(res);
-                        }
-                    } else {
-                        //res.writeHead(403);
+                    rs.on('error', function (err) {
+                        store.onReadError.call(store, err, fileId, file);
                         res.end();
+                    });
+                    ws.on('error', function (err) {
+                        store.onReadError.call(store, err, fileId, file);
+                        res.end();
+                    });
+                    ws.on('close', function () {
+                        // Close output stream at the end
+                        ws.emit('end');
+                    });
+
+                    var accept = req.headers['accept-encoding'] || '';
+                    var headers = {
+                        'Content-Type': file.type,
+                        'Content-Length': file.size
+                    };
+
+                    // Transform stream
+                    store.transformRead(rs, ws, fileId, file, req, headers);
+
+                    // Compress data using gzip
+                    if (accept.match(/\bgzip\b/)) {
+                        headers['Content-Encoding'] = 'gzip';
+                        delete headers['Content-Length'];
+                        res.writeHead(200, headers);
+                        ws.pipe(zlib.createGzip()).pipe(res);
+                    }
+                    // Compress data using deflate
+                    else if (accept.match(/\bdeflate\b/)) {
+                        headers['Content-Encoding'] = 'deflate';
+                        delete headers['Content-Length'];
+                        res.writeHead(200, headers);
+                        ws.pipe(zlib.createDeflate()).pipe(res);
+                    }
+                    // Send raw data
+                    else {
+                        res.writeHead(200, headers);
+                        ws.pipe(res);
                     }
                 } else {
-                    console.error('ufs: store.onRead is not a function');
-                    res.writeHead(500);
                     res.end();
                 }
             });
@@ -230,15 +250,4 @@ if (Meteor.isServer) {
             next();
         }
     });
-
-    function createTempDir() {
-        var path = UploadFS.config.tmpDir;
-        mkdirp(path, function (err) {
-            if (err) {
-                console.error('ufs: cannot create tmpDir ' + path);
-            } else {
-                console.log('ufs: created tmpDir ' + path);
-            }
-        });
-    }
 }

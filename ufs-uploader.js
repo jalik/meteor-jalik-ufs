@@ -1,5 +1,5 @@
 /**
- * Upload manager
+ * File uploader
  * @param options
  * @constructor
  */
@@ -8,9 +8,12 @@ UploadFS.Uploader = function (options) {
 
     // Set default options
     options = _.extend({
-        chunkSize: 1024 * 8,
+        adaptive: true,
+        capacity: 0.9,
+        chunkSize: 8 * 1024,
         data: null,
         file: null,
+        maxChunkSize: 0,
         maxTries: 5,
         store: null
     }, options);
@@ -21,8 +24,17 @@ UploadFS.Uploader = function (options) {
     }
 
     // Check options
+    if (typeof options.adaptive !== 'boolean') {
+        throw new TypeError('adaptive is not a number');
+    }
+    if (typeof options.capacity !== 'number') {
+        throw new TypeError('capacity is not a number');
+    }
+    if (options.capacity <= 0 || options.capacity > 1) {
+        throw new RangeError('capacity must be a float between 0.1 and 1.0');
+    }
     if (typeof options.chunkSize !== 'number') {
-        throw new TypeError('chunkSize is not an number');
+        throw new TypeError('chunkSize is not a number');
     }
     if (!(options.data instanceof ArrayBuffer)) {
         throw new TypeError('data is not an ArrayBuffer');
@@ -30,8 +42,11 @@ UploadFS.Uploader = function (options) {
     if (options.file === null || typeof options.file !== 'object') {
         throw new TypeError('file is not an object');
     }
+    if (typeof options.maxChunkSize !== 'number') {
+        throw new TypeError('maxChunkSize is not a number');
+    }
     if (typeof options.maxTries !== 'number') {
-        throw new TypeError('maxTries is not an number');
+        throw new TypeError('maxTries is not a number');
     }
     if (!(options.store instanceof UploadFS.Store)) {
         throw new TypeError('store is not an UploadFS.Store');
@@ -46,12 +61,16 @@ UploadFS.Uploader = function (options) {
     }
 
     // Public attributes
+    self.adaptive = options.adaptive;
+    self.capacity = parseFloat(options.capacity);
     self.chunkSize = parseInt(options.chunkSize);
+    self.maxChunkSize = parseInt(options.maxChunkSize);
     self.maxTries = parseInt(options.maxTries);
 
     // Private attributes
     var store = options.store;
     var data = options.data;
+    var capacityMargin = 10; //%
     var file = options.file;
     var fileId = null;
     var offset = 0;
@@ -62,6 +81,12 @@ UploadFS.Uploader = function (options) {
     var loaded = new ReactiveVar(0);
     var uploading = new ReactiveVar(false);
 
+    var timeA = null;
+    var timeB = null;
+
+    // Assign file to store
+    file.store = store.getName();
+
     /**
      * Aborts the current transfer
      */
@@ -71,7 +96,7 @@ UploadFS.Uploader = function (options) {
         // Remove the file from database
         store.getCollection().remove(fileId, function (err) {
             if (err) {
-                console.error(err);
+                console.error('ufs: cannot remove file ' + fileId + ' (' + err.message + ')');
             } else {
                 fileId = null;
                 offset = 0;
@@ -131,9 +156,10 @@ UploadFS.Uploader = function (options) {
             function upload() {
                 uploading.set(true);
 
+                var length = self.chunkSize;
+
                 function sendChunk() {
                     if (uploading.get() && !complete.get()) {
-                        var length = self.chunkSize;
 
                         // Calculate the chunk size
                         if (offset + length > total) {
@@ -145,32 +171,52 @@ UploadFS.Uploader = function (options) {
                             var chunk = new Uint8Array(data, offset, length);
                             var progress = (offset + length) / total;
 
-                            // Simulate write speed
-                            Meteor.setTimeout(function () {
-                                // Write the chunk to the store
-                                Meteor.call('ufsWrite', chunk, fileId, store.getName(), progress, function (err, length) {
-                                    if (err || !length) {
-                                        // Retry until max tries is reach
-                                        // But don't retry if these errors occur
-                                        if (tries < self.maxTries && !_.contains([400, 404], err.error)) {
-                                            tries += 1;
+                            timeA = Date.now();
 
-                                            // Wait 1 sec before retrying
-                                            Meteor.setTimeout(function () {
-                                                sendChunk();
-                                            }, 1000);
+                            // Write the chunk to the store
+                            Meteor.call('ufsWrite', chunk, fileId, store.getName(), progress, function (err, bytes) {
+                                timeB = Date.now();
 
-                                        } else {
-                                            self.abort();
-                                            self.onError.call(self, err);
-                                        }
+                                if (err || !bytes) {
+                                    // Retry until max tries is reach
+                                    // But don't retry if these errors occur
+                                    if (tries < self.maxTries && !_.contains([400, 404], err.error)) {
+                                        tries += 1;
+
+                                        // Wait 1 sec before retrying
+                                        Meteor.setTimeout(function () {
+                                            sendChunk();
+                                        }, 1000);
+
                                     } else {
-                                        offset += length;
-                                        loaded.set(loaded.get() + length);
-                                        sendChunk();
+                                        self.abort();
+                                        self.onError.call(self, err);
                                     }
-                                });
-                            }, parseInt(UploadFS.config.simulateUploadDelay) || 0);
+                                } else {
+                                    offset += bytes;
+                                    loaded.set(loaded.get() + bytes);
+
+                                    // Use adaptive length
+                                    if (self.adaptive && timeA && timeB && timeB > timeA) {
+                                        var duration = (timeB - timeA) / 1000;
+
+                                        var max = self.capacity * (1 + (capacityMargin / 100));
+                                        var min = self.capacity * (1 - (capacityMargin / 100));
+
+                                        if (duration >= max) {
+                                            length = Math.abs(Math.round(bytes * (max - duration)));
+
+                                        } else if (duration < min) {
+                                            length = Math.round(bytes * (min / duration));
+                                        }
+                                        // Limit to max chunk size
+                                        if (self.maxChunkSize > 0 && length > self.maxChunkSize) {
+                                            length = self.maxChunkSize;
+                                        }
+                                    }
+                                    sendChunk();
+                                }
+                            });
 
                         } else {
                             // Finish the upload by telling the store the upload is complete
@@ -203,7 +249,13 @@ UploadFS.Uploader = function (options) {
                     }
                 });
             } else {
-                upload();
+                store.getCollection().update(fileId, {
+                    $set: {uploading: true}
+                }, function (err, result) {
+                    if (!err && result) {
+                        upload();
+                    }
+                });
             }
         }
     };
@@ -215,9 +267,7 @@ UploadFS.Uploader = function (options) {
         if (uploading.get()) {
             uploading.set(false);
             store.getCollection().update(fileId, {
-                $set: {
-                    uploading: false
-                }
+                $set: {uploading: false}
             });
         }
     };
@@ -235,5 +285,5 @@ UploadFS.Uploader.prototype.onComplete = function (file) {
  * @param err
  */
 UploadFS.Uploader.prototype.onError = function (err) {
-    console.error(err);
+    console.error(err.message);
 };

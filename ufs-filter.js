@@ -11,7 +11,8 @@ UploadFS.Filter = function (options) {
         contentTypes: null,
         extensions: null,
         minSize: 1,
-        maxSize: 0
+        maxSize: 0,
+        onCheck: null
     }, options);
 
     // Check options
@@ -27,12 +28,42 @@ UploadFS.Filter = function (options) {
     if (typeof options.maxSize !== 'number') {
         throw new TypeError('maxSize is not a number');
     }
+    if (options.onCheck && typeof options.onCheck !== 'function') {
+        throw new TypeError('onCheck is not a function');
+    }
 
     // Private attributes
     var contentTypes = options.contentTypes;
     var extensions = options.extensions;
+    var onCheck = options.onCheck;
     var maxSize = parseInt(options.maxSize);
     var minSize = parseInt(options.minSize);
+
+    /**
+     * Checks the file
+     * @param file
+     */
+    self.check = function (file) {
+        // Check size
+        if (file.size <= 0 || file.size < self.getMinSize()) {
+            throw new Meteor.Error('file-too-small', 'File is too small (min =' + self.getMinSize() + ')');
+        }
+        if (self.getMaxSize() > 0 && file.size > self.getMaxSize()) {
+            throw new Meteor.Error('file-too-large', 'File is too large (max = ' + self.getMaxSize() + ')');
+        }
+        // Check extension
+        if (self.getExtensions() && !_.contains(self.getExtensions(), file.extension)) {
+            throw new Meteor.Error('invalid-file-extension', 'File extension is not accepted');
+        }
+        // Check content type
+        if (self.getContentTypes() && !checkContentType(file.type, self.getContentTypes())) {
+            throw new Meteor.Error('invalid-file-type', 'File type is not accepted');
+        }
+        // Apply custom check
+        if (typeof onCheck === 'function' && !onCheck.call(self, file)) {
+            throw new Meteor.Error('invalid-file', 'File does not match filter');
+        }
+    };
 
     /**
      * Returns the allowed content types
@@ -65,30 +96,21 @@ UploadFS.Filter = function (options) {
     self.getMinSize = function () {
         return minSize;
     };
-};
 
-/**
- * Checks the file
- * @param file
- * @return {boolean}
- */
-UploadFS.Filter.prototype.check = function (file) {
-    // Check size
-    if (file.size <= 0 || file.size < this.getMinSize()) {
-        throw new Meteor.Error('file-too-small', 'The file is too small, min size is ' + this.getMinSize());
-    }
-    if (this.getMaxSize() > 0 && file.size > this.getMaxSize()) {
-        throw new Meteor.Error('file-too-large', 'The file is too large, max size is ' + this.getMaxSize());
-    }
-    // Check extension
-    if (this.getExtensions() && !_.contains(this.getExtensions(), file.extension)) {
-        throw new Meteor.Error('invalid-file-extension', 'The file extension is not accepted');
-    }
-    // Check content type
-    if (this.getContentTypes() && !checkContentType(file.type, this.getContentTypes())) {
-        throw new Meteor.Error('invalid-file-type', 'The file type is not accepted');
-    }
-    return true;
+    /**
+     * Checks if the file matches filter
+     * @param file
+     * @return {boolean}
+     */
+    self.isValid = function (file) {
+        return !(
+            file.size <= 0 || file.size < self.getMinSize()
+            || self.getMaxSize() > 0 && file.size > self.getMaxSize()
+            || self.getExtensions() && !_.contains(self.getExtensions(), file.extension)
+            || self.getContentTypes() && !checkContentType(file.type, self.getContentTypes())
+            || (typeof onCheck === 'function' && !onCheck.call(self, file))
+        );
+    };
 };
 
 function checkContentType(type, list) {
