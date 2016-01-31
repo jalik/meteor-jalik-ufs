@@ -358,20 +358,24 @@ Template.upload.events({
                 onError: function (err) {
                     console.error(err);
                 },
-                // The complete callback
+                onAbort: function (file) {
+                    console.log(file.name + ' upload has been aborted');
+                },
                 onComplete: function (file) {
                     console.log(file.name + ' has been uploaded');
+                },
+                onCreate: function (file) {
+                    console.log(file.name + ' has been created with ID ' + file._id);
+                },
+                onProgress: function (file, progress) {
+                    console.log(file.name + ' ' + (progress*100) + '% uploaded');
                 }
-            });
-            
-            // Reactive method to get upload progress
-            Tracker.autorun(function() {
-                console.log((upload.getProgress() * 100) + '% completed');
-            });
-            
-            // Reactive method to get upload status
-            Tracker.autorun(function() {
-                console.log('transfer ' + (upload.isUploading() ? 'started' : 'stopped'));
+                onStart: function (file) {
+                    console.log(file.name + ' started');
+                },
+                onStop: function (file) {
+                    console.log(file.name + ' stopped');
+                },
             });
             
             // Starts the upload

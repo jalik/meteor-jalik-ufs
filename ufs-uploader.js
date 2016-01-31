@@ -15,6 +15,13 @@ UploadFS.Uploader = function (options) {
         file: null,
         maxChunkSize: 0,
         maxTries: 5,
+        onAbort: UploadFS.Uploader.prototype.onAbort,
+        onComplete: UploadFS.Uploader.prototype.onComplete,
+        onCreate: UploadFS.Uploader.prototype.onCreate,
+        onError: UploadFS.Uploader.prototype.onError,
+        onProgress: UploadFS.Uploader.prototype.onProgress,
+        onStart: UploadFS.Uploader.prototype.onStart,
+        onStop: UploadFS.Uploader.prototype.onStop,
         store: null
     }, options);
 
@@ -48,6 +55,27 @@ UploadFS.Uploader = function (options) {
     if (typeof options.maxTries !== 'number') {
         throw new TypeError('maxTries is not a number');
     }
+    if (typeof options.onAbort !== 'function') {
+        throw new TypeError('onAbort is not a function');
+    }
+    if (typeof options.onComplete !== 'function') {
+        throw new TypeError('onComplete is not a function');
+    }
+    if (typeof options.onCreate !== 'function') {
+        throw new TypeError('onCreate is not a function');
+    }
+    if (typeof options.onError !== 'function') {
+        throw new TypeError('onError is not a function');
+    }
+    if (typeof options.onProgress !== 'function') {
+        throw new TypeError('onProgress is not a function');
+    }
+    if (typeof options.onStart !== 'function') {
+        throw new TypeError('onStart is not a function');
+    }
+    if (typeof options.onStop !== 'function') {
+        throw new TypeError('onStop is not a function');
+    }
     if (!(options.store instanceof UploadFS.Store)) {
         throw new TypeError('store is not an UploadFS.Store');
     }
@@ -66,6 +94,13 @@ UploadFS.Uploader = function (options) {
     self.chunkSize = parseInt(options.chunkSize);
     self.maxChunkSize = parseInt(options.maxChunkSize);
     self.maxTries = parseInt(options.maxTries);
+    self.onAbort = options.onAbort;
+    self.onComplete = options.onComplete;
+    self.onCreate = options.onCreate;
+    self.onError = options.onError;
+    self.onProgress = options.onProgress;
+    self.onStart = options.onStart;
+    self.onStop = options.onStop;
 
     // Private attributes
     var store = options.store;
@@ -103,6 +138,7 @@ UploadFS.Uploader = function (options) {
                 tries = 0;
                 loaded.set(0);
                 complete.set(false);
+                self.onAbort(file);
             }
         });
     };
@@ -116,7 +152,7 @@ UploadFS.Uploader = function (options) {
     };
 
     /**
-     * Returns the loaded bits count
+     * Returns the loaded bytes
      * @return {number}
      */
     self.getLoaded = function () {
@@ -129,6 +165,14 @@ UploadFS.Uploader = function (options) {
      */
     self.getProgress = function () {
         return parseFloat((loaded.get() / total).toFixed(2));
+    };
+
+    /**
+     * Returns the total bytes
+     * @return {number}
+     */
+    self.getTotal = function () {
+        return total;
     };
 
     /**
@@ -152,6 +196,7 @@ UploadFS.Uploader = function (options) {
      */
     self.start = function () {
         if (!uploading.get() && !complete.get()) {
+            self.onStart(file);
 
             function upload() {
                 uploading.set(true);
@@ -184,13 +229,11 @@ UploadFS.Uploader = function (options) {
                                         tries += 1;
 
                                         // Wait 1 sec before retrying
-                                        Meteor.setTimeout(function () {
-                                            sendChunk();
-                                        }, 1000);
+                                        Meteor.setTimeout(sendChunk, 1000);
 
                                     } else {
                                         self.abort();
-                                        self.onError.call(self, err);
+                                        self.onError(err);
                                     }
                                 } else {
                                     offset += bytes;
@@ -214,6 +257,7 @@ UploadFS.Uploader = function (options) {
                                             length = self.maxChunkSize;
                                         }
                                     }
+                                    self.onProgress(file, self.getProgress());
                                     sendChunk();
                                 }
                             });
@@ -223,11 +267,13 @@ UploadFS.Uploader = function (options) {
                             Meteor.call('ufsComplete', fileId, store.getName(), function (err, uploadedFile) {
                                 if (err) {
                                     self.abort();
+
                                 } else if (uploadedFile) {
                                     uploading.set(false);
                                     complete.set(true);
                                     file = uploadedFile;
-                                    self.onComplete.call(self, uploadedFile);
+                                    self.onProgress(uploadedFile, loaded.get() / progress);
+                                    self.onComplete(uploadedFile);
                                 }
                             });
                         }
@@ -241,10 +287,11 @@ UploadFS.Uploader = function (options) {
                 // Insert the file in the collection
                 store.getCollection().insert(file, function (err, uploadId) {
                     if (err) {
-                        self.onError.call(self, err);
+                        self.onError(err);
                     } else {
                         fileId = uploadId;
                         file._id = fileId;
+                        self.onCreate(file);
                         upload();
                     }
                 });
@@ -269,8 +316,16 @@ UploadFS.Uploader = function (options) {
             store.getCollection().update(fileId, {
                 $set: {uploading: false}
             });
+            self.onStop(file);
         }
     };
+};
+
+/**
+ * Called when the file upload is aborted
+ * @param file
+ */
+UploadFS.Uploader.prototype.onAbort = function (file) {
 };
 
 /**
@@ -281,9 +336,38 @@ UploadFS.Uploader.prototype.onComplete = function (file) {
 };
 
 /**
+ * Called when the file is created in the collection
+ * @param file
+ */
+UploadFS.Uploader.prototype.onCreate = function (file) {
+};
+
+/**
  * Called when an error occurs during file upload
  * @param err
  */
 UploadFS.Uploader.prototype.onError = function (err) {
     console.error(err.message);
+};
+
+/**
+ * Called when a file chunk has been sent
+ * @param file
+ * @param progress is a float from 0.0 to 1.0
+ */
+UploadFS.Uploader.prototype.onProgress = function (file, progress) {
+};
+
+/**
+ * Called when the file upload starts
+ * @param file
+ */
+UploadFS.Uploader.prototype.onStart = function (file) {
+};
+
+/**
+ * Called when the file upload stops
+ * @param file
+ */
+UploadFS.Uploader.prototype.onStop = function (file) {
 };
