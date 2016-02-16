@@ -29,6 +29,16 @@ UploadFS = {
         return stores;
     },
     /**
+     * Imports a file from a URL
+     * @param url
+     * @param file
+     * @param store
+     * @param callback
+     */
+    importFromURL: function (url, file, store, callback) {
+        Meteor.call('ufsImportURL', url, file, store && store.getName(), callback);
+    },
+    /**
      * Returns file and data as ArrayBuffer for each files in the event
      * @param event
      * @param callback

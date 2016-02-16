@@ -307,6 +307,8 @@ store.write(readStream, fileId, function(err, file) {
 
 ## Uploading files
 
+### Uploading from a file
+
 When the store on the server is configured, you can upload files to it.
 
 Here is the template to upload one or more files :
@@ -389,6 +391,25 @@ Template.upload.events({
         });
     }
 });
+```
+
+### Uploading from a URL
+
+If you want to upload a file directly from a URL, use the `importFromURL(url, fileAttr, storeName, callback)` method.
+This method is available both on the client and the server.
+
+```js
+var url = 'https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png';
+var attributes = { name: 'Google Logo', description: 'Logo from www.google.com' };
+
+UploadFS.importFromURL(url, attributes, PhotosStore, function (err, fileId) {
+    if (err) {
+        displayError(err);
+    } else {
+        console.log('Photo saved ', fileId);
+    }
+});
+
 ```
 
 ## Displaying images
