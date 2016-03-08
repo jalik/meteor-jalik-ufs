@@ -80,14 +80,6 @@ UploadFS.Uploader = function (options) {
         throw new TypeError('store is not an UploadFS.Store');
     }
 
-    // Listeners
-    if (typeof options.onComplete === 'function') {
-        self.onComplete = options.onComplete;
-    }
-    if (typeof options.onError === 'function') {
-        self.onError = options.onError;
-    }
-
     // Public attributes
     self.adaptive = options.adaptive;
     self.capacity = parseFloat(options.capacity);

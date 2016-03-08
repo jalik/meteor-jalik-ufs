@@ -25,12 +25,6 @@ UploadFS.Store = function (options) {
         throw new Error('UploadFS.Store is not an instance');
     }
 
-    // todo remove migration warning
-    if (options.transform) {
-        console.warn('ufs: store.transform() is deprecated, use store.transformWrite() instead !');
-        options.transformWrite = options.transform;
-    }
-
     // Check options
     if (!(options.collection instanceof Mongo.Collection)) {
         throw new TypeError('collection is not a Mongo.Collection');
@@ -283,11 +277,9 @@ UploadFS.Store = function (options) {
         if (typeof file.store !== 'string' || !file.store.length) {
             throw new Meteor.Error(400, "file store not defined");
         }
-        file.complete = false;
         file.extension = file.name && file.name.substr((~-file.name.lastIndexOf('.') >>> 0) + 2).toLowerCase();
-        file.progress = 0;
-        file.size = file.size || 0;
-        file.uploading = true;
+        file.progress = Number(file.progress) || 0;
+        file.size = Number(file.size) || 0;
         file.userId = file.userId || userId;
     });
 
