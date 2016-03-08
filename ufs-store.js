@@ -277,9 +277,15 @@ UploadFS.Store = function (options) {
         if (typeof file.store !== 'string' || !file.store.length) {
             throw new Meteor.Error(400, "file store not defined");
         }
+        if (typeof file.complete !== 'boolean') {
+            file.complete = false;
+        }
+        if (typeof file.uploading !== 'boolean') {
+            file.uploading = true;
+        }
         file.extension = file.name && file.name.substr((~-file.name.lastIndexOf('.') >>> 0) + 2).toLowerCase();
-        file.progress = Number(file.progress) || 0;
-        file.size = Number(file.size) || 0;
+        file.progress = parseFloat(file.progress) || 0;
+        file.size = parseInt(file.size) || 0;
         file.userId = file.userId || userId;
     });
 
