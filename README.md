@@ -25,6 +25,8 @@ As the package is modular, you can add support for custom stores and even create
 
 * [UploadFS.store.Local](https://github.com/jalik/jalik-ufs-local)
 * [UploadFS.store.GridFS](https://github.com/jalik/jalik-ufs-gridfs)
+* [UploadFS.store.WABS](https://github.com/sebakerckhof/ufs-wabs)
+* [UploadFS.store.S3](https://github.com/sebakerckhof/ufs-s3)
 
 ## Introduction
 
