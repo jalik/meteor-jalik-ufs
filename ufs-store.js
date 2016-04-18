@@ -146,6 +146,11 @@ UploadFS.Store = function (options) {
             // Get original stream
             var rs = self.getReadStream(fileId, file);
 
+            // Catch errors to avoid app crashing
+            rs.on('error', Meteor.bindEnvironment(function (error) {
+                callback.call(self, error, null);
+            }));
+
             // Copy file data
             store.write(rs, copyId, Meteor.bindEnvironment(function (err) {
                 if (err) {
@@ -160,33 +165,33 @@ UploadFS.Store = function (options) {
 
         /**
          * Transforms the file on reading
-         * @param from
-         * @param to
+         * @param readStream
+         * @param writeStream
          * @param fileId
          * @param file
          * @param request
          * @param headers
          */
-        self.transformRead = function (from, to, fileId, file, request, headers) {
+        self.transformRead = function (readStream, writeStream, fileId, file, request, headers) {
             if (typeof transformRead === 'function') {
-                transformRead.call(self, from, to, fileId, file, request, headers);
+                transformRead.call(self, readStream, writeStream, fileId, file, request, headers);
             } else {
-                from.pipe(to);
+                readStream.pipe(writeStream);
             }
         };
 
         /**
          * Transforms the file on writing
-         * @param from
-         * @param to
+         * @param readStream
+         * @param writeStream
          * @param fileId
          * @param file
          */
-        self.transformWrite = function (from, to, fileId, file) {
+        self.transformWrite = function (readStream, writeStream, fileId, file) {
             if (typeof transformWrite === 'function') {
-                transformWrite.call(self, from, to, fileId, file);
+                transformWrite.call(self, readStream, writeStream, fileId, file);
             } else {
-                from.pipe(to);
+                readStream.pipe(writeStream);
             }
         };
 
@@ -209,12 +214,15 @@ UploadFS.Store = function (options) {
             ws.on('error', errorHandler);
             ws.on('finish', Meteor.bindEnvironment(function () {
                 var size = 0;
-                var from = self.getReadStream(fileId, file);
+                var readStream = self.getReadStream(fileId, file);
 
-                from.on('data', function (data) {
+                readStream.on('error', Meteor.bindEnvironment(function (error) {
+                    callback.call(self, error, null);
+                }));
+                readStream.on('data', Meteor.bindEnvironment(function (data) {
                     size += data.length;
-                });
-                from.on('end', Meteor.bindEnvironment(function () {
+                }));
+                readStream.on('end', Meteor.bindEnvironment(function () {
                     // Set file attribute
                     file.complete = true;
                     file.progress = 1;

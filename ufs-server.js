@@ -108,11 +108,15 @@ WebApp.connectHandlers.use(function (req, res, next) {
                     ws.emit('end');
                 });
 
-                var accept = req.headers['accept-encoding'] || '';
+                var accept = '';
                 var headers = {
                     'Content-Type': file.type,
                     'Content-Length': file.size
                 };
+
+                if (typeof req.headers === 'object') {
+                    accept = req.headers['accept-encoding'];
+                }
 
                 // Transform stream
                 store.transformRead(rs, ws, fileId, file, req, headers);

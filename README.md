@@ -122,7 +122,7 @@ PhotosStore = new UploadFS.store.Local({
 
 ## Transforming files
 
-If you need to modify the file before it is saved to the store, you have to use the **transform** option.
+If you need to modify the file before it is saved to the store, you have to use the `transformRead` or `transformWrite` parameter.
 A common use is to resize/compress images to get lighter versions of the uploaded files.
 
 ```js
@@ -131,14 +131,14 @@ PhotosStore = new UploadFS.store.Local({
     name: 'photos',
     path: '/uploads/photos',
     // Transform file when reading
-    transformRead: function (from, to, fileId, file, request) {
-        from.pipe(to); // this returns the raw data
+    transformRead: function (readStream, writeStream, fileId, file, request) {
+        readStream.pipe(writeStream); // this returns the raw data
     }
     // Transform file when writing
-    transformWrite: function (from, to, fileId, file) {
+    transformWrite: function (readStream, writeStream, fileId, file) {
         var im = Npm.require('imagemagick-stream');
         var resize = im().resize('800x600').quality(90);
-        from.pipe(resize).pipe(to);
+        readStream.pipe(resize).pipe(writeStream);
     }
 });
 ```
@@ -158,10 +158,10 @@ PhotosStore = new UploadFS.store.Local({
         new UploadFS.store.Local({
             collection: Thumbnails,
             name: 'thumbnails',
-            transformWrite: function(from, to, fileId, file) {
+            transformWrite: function(readStream, writeStream, fileId, file) {
                 var im = Npm.require('imagemagick-stream');
                 var resize = im().resize('128x128').quality(80);
-                from.pipe(resize).pipe(to);
+                readStream.pipe(resize).pipe(writeStream);
             }
         })
     ]
@@ -289,9 +289,28 @@ PhotosStore = new UploadFS.store.Local({
 });
 ```
 
-## Writing files
+## Reading a file from a store
 
-Sometimes you could need to write to the store directly on the server without any client involved.
+If you need to get a file directly from a store, do like below :
+
+```js
+// Get the file from database
+var file = Photos.findOne(fileId);
+
+// Get the file stream from the store
+var readStream = PhotosStore.getReadStream(fileId, file);
+
+readStream.on('error', Meteor.bindEnvironment(function (error) {
+    console.error(err);
+}));
+readStream.on('data', Meteor.bindEnvironment(function (data) {
+    // handle the data
+}));
+```
+
+## Writing a file to a store
+
+If you need to save a file directly to a store, do like below :
 
 ```js
 // Insert the file in database
@@ -395,7 +414,7 @@ Template.upload.events({
 });
 ```
 
-### Uploading from a URL
+### Uploading from an URL
 
 If you want to upload a file directly from a URL, use the `importFromURL(url, fileAttr, storeName, callback)` method.
 This method is available both on the client and the server.
