@@ -108,38 +108,45 @@ WebApp.connectHandlers.use(function (req, res, next) {
                     ws.emit('end');
                 });
 
-                var accept = '';
                 var headers = {
                     'Content-Type': file.type,
                     'Content-Length': file.size
                 };
 
-                if (typeof req.headers === 'object') {
-                    accept = req.headers['accept-encoding'];
-                }
-
                 // Transform stream
                 store.transformRead(rs, ws, fileId, file, req, headers);
 
-                // Compress data using gzip
-                if (accept.match(/\bgzip\b/)) {
-                    headers['Content-Encoding'] = 'gzip';
-                    delete headers['Content-Length'];
-                    res.writeHead(200, headers);
-                    ws.pipe(zlib.createGzip()).pipe(res);
+                // Parse headers
+                if (typeof req.headers === 'object') {
+                    // Compress data using accept-encoding header
+                    if (typeof req.headers['accept-encoding'] === 'string') {
+                        var accept = req.headers['accept-encoding'];
+
+                        // Compress with gzip
+                        if (accept.match(/\bgzip\b/)) {
+                            headers['Content-Encoding'] = 'gzip';
+                            delete headers['Content-Length'];
+                            res.writeHead(200, headers);
+                            ws.pipe(zlib.createGzip()).pipe(res);
+                            return;
+                        }
+                        // Compress with deflate
+                        else if (accept.match(/\bdeflate\b/)) {
+                            headers['Content-Encoding'] = 'deflate';
+                            delete headers['Content-Length'];
+                            res.writeHead(200, headers);
+                            ws.pipe(zlib.createDeflate()).pipe(res);
+                            return;
+                        }
+                    }
                 }
-                // Compress data using deflate
-                else if (accept.match(/\bdeflate\b/)) {
-                    headers['Content-Encoding'] = 'deflate';
-                    delete headers['Content-Length'];
-                    res.writeHead(200, headers);
-                    ws.pipe(zlib.createDeflate()).pipe(res);
-                }
+
                 // Send raw data
-                else {
+                if (!headers['Content-Encoding']) {
                     res.writeHead(200, headers);
                     ws.pipe(res);
                 }
+
             } else {
                 res.end();
             }
