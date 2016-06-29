@@ -104,7 +104,7 @@ Meteor.methods({
                 if (err) {
                     fut.throw(err);
                 } else {
-                    fut.return(fileId);
+                    fut.return(file);
                 }
             });
         })).on('error', function (err) {

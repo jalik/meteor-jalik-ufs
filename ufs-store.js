@@ -147,8 +147,8 @@ UploadFS.Store = function (options) {
             var rs = self.getReadStream(fileId, file);
 
             // Catch errors to avoid app crashing
-            rs.on('error', Meteor.bindEnvironment(function (error) {
-                callback.call(self, error, null);
+            rs.on('error', Meteor.bindEnvironment(function (err) {
+                callback.call(self, err, null);
             }));
 
             // Copy file data

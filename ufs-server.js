@@ -64,7 +64,7 @@ WebApp.connectHandlers.use(function (req, res, next) {
             return;
         }
 
-        if (typeof store.onRead !== 'function') {
+        if (store.onRead !== null && store.onRead !== undefined && typeof store.onRead !== 'function') {
             console.error('ufs: store "' + storeName + '" onRead is not a function');
             res.writeHead(500);
             res.end();
