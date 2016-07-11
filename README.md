@@ -423,11 +423,11 @@ This method is available both on the client and the server.
 var url = 'https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png';
 var attributes = { name: 'Google Logo', description: 'Logo from www.google.com' };
 
-UploadFS.importFromURL(url, attributes, PhotosStore, function (err, fileId) {
+UploadFS.importFromURL(url, attributes, PhotosStore, function (err, file) {
     if (err) {
         displayError(err);
     } else {
-        console.log('Photo saved ', fileId);
+        console.log('Photo saved :', file);
     }
 });
 
