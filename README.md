@@ -421,6 +421,7 @@ Notice : You can use `UploadFS.selectFile(callback)` or `UploadFS.selectFiles(ca
 the callback is called with one argument that represents the File/Blob object for each selected file.
 
 During uploading you can get some kind of useful information like the following :
+ - `uploader.getAverageSpeed()` returns the average speed in bytes per second
  - `uploader.getElapsedTime()` returns the elapsed time in milliseconds
  - `uploader.getRemainingTime()` returns the remaining time in milliseconds
  - `uploader.getSpeed()` returns the speed in bytes per second
