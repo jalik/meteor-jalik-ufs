@@ -1,7 +1,13 @@
 # UploadFS
 
-UploadFS is a Meteor package that aims to make file uploading easy, fast and configurable.
-An important feature is the ability to **start, stop or even abort a transfer** when you want.
+UploadFS is a package for the Meteor framework that aims to make file uploading easy, fast and configurable.
+Some important features are supported like the ability to **start, stop or even abort a transfer**, securing file access, transforming files on writing or reading...
+
+If you want to support this package and feel graceful for all the work, please share this package with the community or feel free to send me pull requests if you want to contribute.
+
+Also I'll be glad to receive donations, whatever you give it will be much appreciated.
+
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=SS78MUMW8AH4N)
 
 ## Testing
 
@@ -32,7 +38,8 @@ As the package is modular, you can add support for custom stores and even create
 
 In file uploading, you basically have a client and a server, I haven't change those things.
 So on the client side, you create an uploader for each file transfer needed, while on the server side you only configure a store where the file will be saved.
-I'll use the `UploadFS.store.Local` store in the following examples.
+
+In this documentation, I am using the `UploadFS.store.Local` store which saves files on the filesystem.
 
 ## Configuration
 
