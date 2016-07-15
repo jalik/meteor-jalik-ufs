@@ -336,7 +336,7 @@ Here is the template to upload one or more files :
 
 ```html
 <template name="upload">
-    <input type="file" name="upload" multiple>
+    <button type="button" name="upload">Select files</button>
 </template>
 ```
 
