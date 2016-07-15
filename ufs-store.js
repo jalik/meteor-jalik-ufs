@@ -339,6 +339,15 @@ UploadFS.Store = function (options) {
 };
 
 /**
+ * Completes the file upload
+ * @param fileId
+ * @param callback
+ */
+UploadFS.Store.prototype.complete = function (fileId, callback) {
+    Meteor.call('ufsComplete', fileId, this.getName(), callback);
+};
+
+/**
  * Returns the file URL
  * @param fileId
  */
@@ -356,6 +365,27 @@ UploadFS.Store.prototype.getURL = function () {
     return Meteor.absoluteUrl(UploadFS.config.storesPath + '/' + this.getName(), {
         secure: UploadFS.config.https
     });
+};
+
+/**
+ * Completes the file upload
+ * @param url
+ * @param file
+ * @param callback
+ */
+UploadFS.Store.prototype.importFromURL = function (url, file, callback) {
+    Meteor.call('ufsImportURL', url, file, this.getName(), callback);
+};
+
+/**
+ * Writes a chunk to the file
+ * @param chunk
+ * @param fileId
+ * @param progress
+ * @param callback
+ */
+UploadFS.Store.prototype.writeChunk = function (chunk, fileId, progress, callback) {
+    Meteor.call('ufsWrite', chunk, fileId, this.getName(), progress, callback);
 };
 
 if (Meteor.isServer) {

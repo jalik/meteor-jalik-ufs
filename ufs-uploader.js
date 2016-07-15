@@ -195,7 +195,7 @@ UploadFS.Uploader = function (options) {
 
                 var length = self.chunkSize;
 
-                function sendChunk() {
+                function writeChunk() {
                     if (uploading.get() && !complete.get()) {
 
                         // Calculate the chunk size
@@ -211,7 +211,7 @@ UploadFS.Uploader = function (options) {
                             timeA = Date.now();
 
                             // Write the chunk to the store
-                            Meteor.call('ufsWrite', chunk, fileId, store.getName(), progress, function (err, bytes) {
+                            store.writeChunk(chunk, fileId, progress, function (err, bytes) {
                                 timeB = Date.now();
 
                                 if (err || !bytes) {
@@ -221,7 +221,7 @@ UploadFS.Uploader = function (options) {
                                         tries += 1;
 
                                         // Wait 1 sec before retrying
-                                        Meteor.setTimeout(sendChunk, 1000);
+                                        Meteor.setTimeout(writeChunk, 1000);
 
                                     } else {
                                         self.abort();
@@ -250,13 +250,13 @@ UploadFS.Uploader = function (options) {
                                         }
                                     }
                                     self.onProgress(file, self.getProgress());
-                                    sendChunk();
+                                    writeChunk();
                                 }
                             });
 
                         } else {
                             // Finish the upload by telling the store the upload is complete
-                            Meteor.call('ufsComplete', fileId, store.getName(), function (err, uploadedFile) {
+                            store.complete(fileId, function (err, uploadedFile) {
                                 if (err) {
                                     self.abort();
 
@@ -271,8 +271,7 @@ UploadFS.Uploader = function (options) {
                         }
                     }
                 }
-
-                sendChunk();
+                writeChunk();
             }
 
             if (!fileId) {
