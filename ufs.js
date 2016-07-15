@@ -59,6 +59,7 @@ if (Meteor.isClient) {
 
     /**
      * Returns file and data as ArrayBuffer for each files in the event
+     * @deprecated
      * @param event
      * @param callback
      */
@@ -66,6 +67,8 @@ if (Meteor.isClient) {
         if (typeof callback !== 'function') {
             throw new TypeError('callback is not a function');
         }
+        // todo remove warning and method in future releases
+        console.warn('UploadFS.readAsArrayBuffer is deprecated and will be removed in future versions, see https://github.com/jalik/jalik-ufs#uploading-from-a-file');
 
         var files = event.target.files;
 
@@ -83,13 +86,35 @@ if (Meteor.isClient) {
     };
 
     /**
-     * Opens the browser's file selection dialog
+     * Opens a dialog to select a single file
+     * @param callback
+     */
+    UploadFS.selectFile = function (callback) {
+        var img = document.createElement('input');
+        img.type = 'file';
+        img.multiple = false;
+        img.onchange = function (ev) {
+            var files = ev.target.files;
+            callback.call(UploadFS, files[0]);
+        };
+        img.click();
+    };
+
+    /**
+     * Opens a dialog to select multiple files
      * @param callback
      */
     UploadFS.selectFiles = function (callback) {
         var img = document.createElement('input');
         img.type = 'file';
-        img.onchange = callback;
+        img.multiple = true;
+        img.onchange = function (ev) {
+            var files = ev.target.files;
+
+            for (var i = 0; i < files.length; i += 1) {
+                callback.call(UploadFS, files[i]);
+            }
+        };
         img.click();
-    }
+    };
 }

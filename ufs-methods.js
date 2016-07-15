@@ -31,8 +31,10 @@ Meteor.methods({
             autoClose: true
         });
 
-        rs.on('error', Meteor.bindEnvironment(function () {
+        rs.on('error', Meteor.bindEnvironment(function (err) {
+            console.error(err);
             store.getCollection().remove(fileId);
+            fut.throw(err);
         }));
 
         // Save file in the store
@@ -160,7 +162,7 @@ Meteor.methods({
             } else {
                 // Update completed state
                 store.getCollection().update(fileId, {
-                    $set: {progress: progress}
+                    $set: {progress: Math.min(progress, 1.0)}
                 });
                 fut.return(chunk.length);
             }

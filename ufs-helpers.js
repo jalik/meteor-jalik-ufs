@@ -4,6 +4,10 @@ var isMIME = function (type, mime) {
         && mime.indexOf(type + '/') === 0;
 };
 
+Template.registerHelper('isApplication', function (type) {
+    return isMIME('application', this.type || type);
+});
+
 Template.registerHelper('isAudio', function (type) {
     return isMIME('audio', this.type || type);
 });

@@ -13,7 +13,7 @@ UploadFS.Uploader = function (options) {
         chunkSize: 8 * 1024,
         data: null,
         file: null,
-        maxChunkSize: 0,
+        maxChunkSize: 4 * 1024 * 1000,
         maxTries: 5,
         onAbort: UploadFS.Uploader.prototype.onAbort,
         onComplete: UploadFS.Uploader.prototype.onComplete,
@@ -43,8 +43,8 @@ UploadFS.Uploader = function (options) {
     if (typeof options.chunkSize !== 'number') {
         throw new TypeError('chunkSize is not a number');
     }
-    if (!(options.data instanceof ArrayBuffer)) {
-        throw new TypeError('data is not an ArrayBuffer');
+    if (!(options.data instanceof ArrayBuffer) && !(options.data instanceof File)) {
+        throw new TypeError('data is not an ArrayBuffer or File');
     }
     if (options.file === null || typeof options.file !== 'object') {
         throw new TypeError('file is not an object');
@@ -101,7 +101,7 @@ UploadFS.Uploader = function (options) {
     var file = options.file;
     var fileId = null;
     var offset = 0;
-    var total = options.data.byteLength;
+    var total = 0;
     var tries = 0;
 
     var complete = new ReactiveVar(false);
@@ -111,8 +111,19 @@ UploadFS.Uploader = function (options) {
     var timeA = null;
     var timeB = null;
 
+    var elapsedTime = 0;
+    var startTime = 0;
+
     // Assign file to store
     file.store = store.getName();
+
+    // Get file total size
+    if (data instanceof ArrayBuffer) {
+        total = data.byteLength;
+    }
+    if (data instanceof File) {
+        total = data.size;
+    }
 
     /**
      * Aborts the current transfer
@@ -136,6 +147,25 @@ UploadFS.Uploader = function (options) {
     };
 
     /**
+     * Returns the average speed in bytes per second
+     * @returns {number}
+     */
+    self.getAverageSpeed = function () {
+        return self.getLoaded() / self.getElapsedTime();
+    };
+
+    /**
+     * Returns the elapsed time in milliseconds
+     * @returns {number}
+     */
+    self.getElapsedTime = function () {
+        if (startTime && self.isUploading()) {
+            return elapsedTime + (Date.now() - startTime);
+        }
+        return elapsedTime;
+    };
+
+    /**
      * Returns the file
      * @return {object}
      */
@@ -148,7 +178,7 @@ UploadFS.Uploader = function (options) {
      * @return {number}
      */
     self.getLoaded = function () {
-        return loaded.get();
+        return loaded.get() || 0;
     };
 
     /**
@@ -156,7 +186,29 @@ UploadFS.Uploader = function (options) {
      * @return {number}
      */
     self.getProgress = function () {
-        return parseFloat((loaded.get() / total).toFixed(2));
+        return Math.min((loaded.get() / total) * 100 / 100, 1.0);
+    };
+
+    /**
+     * Returns the remaining time in milliseconds
+     * @returns {number}
+     */
+    self.getRemainingTime = function () {
+        var averageSpeed = self.getAverageSpeed();
+        var remainingBytes = total - self.getLoaded();
+        return averageSpeed && remainingBytes ? (remainingBytes / averageSpeed) : 0;
+    };
+
+    /**
+     * Returns the upload speed in bytes per second
+     * @returns {number}
+     */
+    self.getSpeed = function () {
+        if (timeA && timeB && self.isUploading()) {
+            var duration = timeB - timeA;
+            return self.chunkSize / (duration / 1000);
+        }
+        return 0;
     };
 
     /**
@@ -184,36 +236,88 @@ UploadFS.Uploader = function (options) {
     };
 
     /**
+     * Reads a portion of file
+     * @param start
+     * @param length
+     * @param callback
+     * @returns {Uint8Array}
+     */
+    self.readChunk = function (start, length, callback) {
+        if (typeof callback != 'function') {
+            throw new Error('missing callback');
+        }
+
+        if (data instanceof ArrayBuffer) {
+            // Calculate the chunk size
+            if (length && start + length > total) {
+                length = total - start;
+            }
+            callback.call(self, null, new Uint8Array(data, start, length));
+        }
+
+        if (data instanceof File) {
+            // Calculate the chunk size
+            if (length && start + length > total) {
+                length = total;
+            } else {
+                length = start + length;
+            }
+            var blob = data.slice(start, length);
+            var reader = new FileReader();
+            reader.onerror = function (err) {
+                callback.call(self, err);
+            };
+            reader.onload = function (ev) {
+                var result = ev.target.result;
+                callback.call(self, null, new Uint8Array(result));
+            };
+            reader.readAsArrayBuffer(blob);
+        }
+    };
+
+    /**
      * Starts or resumes the transfer
      */
     self.start = function () {
         if (!uploading.get() && !complete.get()) {
+            var length = self.chunkSize;
+            startTime = Date.now();
             self.onStart(file);
 
-            function upload() {
-                uploading.set(true);
+            function finish() {
+                // Finish the upload by telling the store the upload is complete
+                store.complete(fileId, function (err, uploadedFile) {
+                    if (err) {
+                        // todo retry instead of abort
+                        self.abort();
 
-                var length = self.chunkSize;
+                    } else if (uploadedFile) {
+                        elapsedTime = Date.now() - startTime;
+                        uploading.set(false);
+                        complete.set(true);
+                        file = uploadedFile;
+                        self.onComplete(uploadedFile);
+                    }
+                });
+            }
 
-                function writeChunk() {
-                    if (uploading.get() && !complete.get()) {
+            function writeChunk() {
+                if (uploading.get() && !complete.get()) {
+                    if (offset < total) {
+                        timeA = Date.now();
+                        timeB = null;
 
-                        // Calculate the chunk size
-                        if (offset + length > total) {
-                            length = total - offset;
-                        }
+                        // Prepare the chunk
+                        self.readChunk(offset, length, function (err, chunk) {
+                            if (err) {
+                                console.error(err);
+                                self.onError(err);
+                            }
 
-                        if (offset < total) {
-                            // Prepare the chunk
-                            var chunk = new Uint8Array(data, offset, length);
                             var progress = (offset + length) / total;
-
-                            timeA = Date.now();
 
                             // Write the chunk to the store
                             store.writeChunk(chunk, fileId, progress, function (err, bytes) {
-                                timeB = Date.now();
-
                                 if (err || !bytes) {
                                     // Retry until max tries is reach
                                     // But don't retry if these errors occur
@@ -228,6 +332,7 @@ UploadFS.Uploader = function (options) {
                                         self.onError(err);
                                     }
                                 } else {
+                                    timeB = Date.now();
                                     offset += bytes;
                                     loaded.set(loaded.get() + bytes);
 
@@ -253,25 +358,12 @@ UploadFS.Uploader = function (options) {
                                     writeChunk();
                                 }
                             });
+                        });
 
-                        } else {
-                            // Finish the upload by telling the store the upload is complete
-                            store.complete(fileId, function (err, uploadedFile) {
-                                if (err) {
-                                    self.abort();
-
-                                } else if (uploadedFile) {
-                                    uploading.set(false);
-                                    complete.set(true);
-                                    file = uploadedFile;
-                                    self.onProgress(uploadedFile, loaded.get() / progress);
-                                    self.onComplete(uploadedFile);
-                                }
-                            });
-                        }
+                    } else {
+                        finish();
                     }
                 }
-                writeChunk();
             }
 
             if (!fileId) {
@@ -283,7 +375,8 @@ UploadFS.Uploader = function (options) {
                         fileId = uploadId;
                         file._id = fileId;
                         self.onCreate(file);
-                        upload();
+                        uploading.set(true);
+                        writeChunk();
                     }
                 });
             } else {
@@ -291,7 +384,8 @@ UploadFS.Uploader = function (options) {
                     $set: {uploading: true}
                 }, function (err, result) {
                     if (!err && result) {
-                        upload();
+                        uploading.set(true);
+                        writeChunk();
                     }
                 });
             }
@@ -303,6 +397,7 @@ UploadFS.Uploader = function (options) {
      */
     self.stop = function () {
         if (uploading.get()) {
+            elapsedTime = Date.now() - startTime;
             uploading.set(false);
             store.getCollection().update(fileId, {
                 $set: {uploading: false}

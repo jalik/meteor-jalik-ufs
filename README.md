@@ -317,7 +317,7 @@ If you need to save a file directly to a store, do like below :
 var fileId = store.create(file);
 
 // Save the file to the store
-store.write(readStream, fileId, function(err, file) {
+store.write(stream, fileId, function(err, file) {
     if (err) {
         console.error(err);
     }else {
@@ -336,7 +336,7 @@ Here is the template to upload one or more files :
 
 ```html
 <template name="upload">
-    <input type="files" multiple>
+    <input type="file" name="upload" multiple>
 </template>
 ```
 
@@ -344,22 +344,25 @@ And there the code to upload the selected files :
 
 ```js
 Template.upload.events({
-    'change input[type=files]': function (ev) {
+    'click button[name=upload]': function (ev) {
         var self = this;
-    
-        // Here we get the ArrayBuffer for each file of the event
-        UploadFS.readAsArrayBuffer(ev, function (data, file) {
+
+        UploadFS.selectFiles(function (file) {
             // Prepare the file to insert in database, note that we don't provide an URL,
             // it will be set automatically by the uploader when file transfer is complete.
             var photo = {
                 name: file.name,
                 size: file.size,
                 type: file.type,
-                customField: 1337
+                customField1: 1337,
+                customField2: {
+                    a: 1,
+                    b: 2
+                }
             };
-    
+
             // Create a new Uploader for this file
-            var upload = new UploadFS.Uploader({
+            var uploader = new UploadFS.Uploader({
                 // This is where the uploader will save the file
                 store: PhotosStore,
                 // Optimize speed transfer by increasing/decreasing chunk size automatically
@@ -373,8 +376,8 @@ Template.upload.events({
                 maxChunkSize: 128 * 1024, // 128k
                 // This tells how many tries to do if an error occurs during upload
                 maxTries: 5,
-                // The file data
-                data: data,
+                // The File/Blob object containing the data
+                data: file,
                 // The document to save in the collection
                 file: photo,
                 // The error callback
@@ -400,19 +403,27 @@ Template.upload.events({
                     console.log(file.name + ' stopped');
                 },
             });
-            
+
             // Starts the upload
-            upload.start();
-            
+            uploader.start();
+
             // Stops the upload
-            upload.stop();
-            
+            uploader.stop();
+
             // Abort the upload
-            upload.abort();
+            uploader.abort();
         });
     }
 });
 ```
+
+Notice : You can use `UploadFS.selectFile(callback)` or `UploadFS.selectFiles(callback)` to select one or multiple files,
+the callback is called with one argument that represents the File/Blob object for each selected file.
+
+During uploading you can get some kind of useful information like the following :
+ - `uploader.getElapsedTime()` returns the elapsed time in milliseconds
+ - `uploader.getRemainingTime()` returns the remaining time in milliseconds
+ - `uploader.getSpeed()` returns the speed in bytes per second
 
 ### Uploading from an URL
 
@@ -421,9 +432,9 @@ This method is available both on the client and the server.
 
 ```js
 var url = 'https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png';
-var attributes = { name: 'Google Logo', description: 'Logo from www.google.com' };
+var attr = { name: 'Google Logo', description: 'Logo from www.google.com' };
 
-UploadFS.importFromURL(url, attributes, PhotosStore, function (err, file) {
+UploadFS.importFromURL(url, attr, PhotosStore, function (err, file) {
     if (err) {
         displayError(err);
     } else {
@@ -473,13 +484,19 @@ Template.photos.helpers({
 Some helpers are available by default to help you work with files inside templates.
 
 ```html
-{{#if isAudio}}
+{{#if UFS.isApplication}}
+    <a href="{{url}}">Download</a>
+{{/if}}
+{{#if UFS.isAudio}}
     <audio src="{{url}}" controls></audio>
 {{/if}}
-{{#if isImage}}
+{{#if UFS.isImage}}
     <img src="{{url}}">
 {{/if}}
-{{#if isVideo}}
+{{#if UFS.isText}}
+    <iframe src={{url}}></iframe>
+{{/if}}
+{{#if UFS.isVideo}}
     <video src="{{url}}" controls></video>
 {{/if}}
 ```
