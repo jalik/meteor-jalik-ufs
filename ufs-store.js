@@ -105,6 +105,18 @@ UploadFS.Store = function (options) {
     if (Meteor.isServer) {
 
         /**
+         * Checks token validity
+         * @param token
+         * @param fileId
+         * @returns {boolean}
+         */
+        self.checkToken = function (token, fileId) {
+            check(token, String);
+            check(fileId, String);
+            return UploadFS.tokens.find({value: token, fileId: fileId}).count() === 1;
+        };
+
+        /**
          * Copies the file to a store
          * @param fileId
          * @param store
@@ -118,7 +130,7 @@ UploadFS.Store = function (options) {
             }
 
             // Get original file
-            let file = self.getCollection().findOne(fileId);
+            let file = collection.findOne(fileId);
             if (!file) {
                 throw new Meteor.Error(404, 'File not found');
             }
@@ -160,7 +172,7 @@ UploadFS.Store = function (options) {
         self.create = function (file, callback) {
             check(file, Object);
             file.store = name;
-            return self.getCollection().insert(file, callback);
+            return collection.insert(file, callback);
         };
 
         /**
@@ -231,11 +243,11 @@ UploadFS.Store = function (options) {
          * @param callback
          */
         self.write = function (rs, fileId, callback) {
-            let file = self.getCollection().findOne(fileId);
+            let file = collection.findOne(fileId);
             let ws = self.getWriteStream(fileId, file);
 
             let errorHandler = Meteor.bindEnvironment(function (err) {
-                self.getCollection().remove(fileId);
+                collection.remove(fileId);
                 self.onWriteError.call(self, err, fileId, file);
                 callback.call(self, err);
             });
@@ -263,7 +275,7 @@ UploadFS.Store = function (options) {
 
                     // Sets the file URL when file transfer is complete,
                     // this way, the image will loads entirely.
-                    self.getCollection().update(fileId, {
+                    collection.update(fileId, {
                         $set: {
                             complete: file.complete,
                             progress: file.progress,

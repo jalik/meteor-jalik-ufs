@@ -4,22 +4,26 @@ Meteor.methods({
      * Completes the file transfer
      * @param fileId
      * @param storeName
+     * @param token
      */
-    ufsComplete: function (fileId, storeName) {
+    ufsComplete: function (fileId, storeName, token) {
         check(fileId, String);
         check(storeName, String);
 
         // Allow other uploads to run concurrently
         this.unblock();
 
+        // Get store
         let store = UploadFS.getStore(storeName);
         if (!store) {
-            throw new Meteor.Error(404, 'store "' + storeName + '" does not exist');
+            throw new Meteor.Error('invalid-store', "Store not found");
         }
-        // Check that file exists and is owned by current user
-        if (store.getCollection().find({_id: fileId, userId: this.userId}).count() < 1) {
-            throw new Meteor.Error(404, 'file "' + fileId + '" does not exist');
+        // Check token
+        if (!store.checkToken(token, fileId)) {
+            throw new Meteor.Error('invalid-token', "Token is not valid");
         }
+
+        // todo checkpermissions
 
         let fut = new Future();
         let tmpFile = UploadFS.getTempFilePath(fileId);
@@ -70,7 +74,7 @@ Meteor.methods({
         // Get store
         let store = UploadFS.getStore(file.store);
         if (!store) {
-            throw new Meteor.Error('invalid-store', "store is not valid");
+            throw new Meteor.Error('invalid-store', "Store not found");
         }
 
         // Set default info
@@ -92,16 +96,21 @@ Meteor.methods({
         let token = store.createToken(fileId);
         let uploadUrl = store.getURL() + '/' + fileId + '?token=' + token;
 
-        return {fileId: fileId, url: uploadUrl};
+        return {
+            fileId: fileId,
+            token: token,
+            url: uploadUrl
+        };
     },
 
     /**
      * Deletes a file
      * @param fileId
      * @param storeName
+     * @param token
      * @returns {*}
      */
-    ufsDelete: function (fileId, storeName) {
+    ufsDelete: function (fileId, storeName, token) {
         check(fileId, String);
         check(storeName, String);
 
@@ -114,6 +123,10 @@ Meteor.methods({
         let file = store.getCollection().find(fileId, {fields: {userId: 1}});
         if (!file) {
             throw new Meteor.Error('invalid-file', "File not found");
+        }
+        // Check token
+        if (!store.checkToken(token, fileId)) {
+            throw new Meteor.Error('invalid-token', "Token is not valid");
         }
         // todo do some security checks
         return store.getCollection().remove(fileId);
@@ -150,7 +163,7 @@ Meteor.methods({
                 store.getFilter().check(file);
             }
             // Create the file
-            let fileId = store.create(file);
+            file._id = store.create(file);
 
         } catch (err) {
             throw new Meteor.Error(500, err.message);
@@ -169,7 +182,7 @@ Meteor.methods({
         // Download file
         proto.get(url, Meteor.bindEnvironment(function (res) {
             // Save the file in the store
-            store.write(res, fileId, function (err, file) {
+            store.write(res, file._id, function (err, file) {
                 if (err) {
                     fut.throw(err);
                 } else {
@@ -186,9 +199,10 @@ Meteor.methods({
      * Marks the file uploading as stopped
      * @param fileId
      * @param storeName
+     * @param token
      * @returns {*}
      */
-    ufsStop: function (fileId, storeName) {
+    ufsStop: function (fileId, storeName, token) {
         check(fileId, String);
         check(storeName, String);
 
@@ -201,6 +215,10 @@ Meteor.methods({
         let file = store.getCollection().find(fileId, {fields: {userId: 1}});
         if (!file) {
             throw new Meteor.Error('invalid-file', "File not found");
+        }
+        // Check token
+        if (!store.checkToken(token, fileId)) {
+            throw new Meteor.Error('invalid-token', "Token is not valid");
         }
         // todo do some security checks
         return store.getCollection().update(fileId, {

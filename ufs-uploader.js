@@ -102,7 +102,7 @@ UploadFS.Uploader = function (options) {
     // Private attributes
     let store = options.store;
     let data = options.data;
-    let capacityMargin = 10; //%
+    let capacityMargin = 0.1;
     let file = options.file;
     let fileId = null;
     let offset = 0;
@@ -110,6 +110,7 @@ UploadFS.Uploader = function (options) {
     let total = 0;
     let tries = 0;
     let postUrl = null;
+    let token = null;
     let complete = false;
     let uploading = false;
 
@@ -130,10 +131,9 @@ UploadFS.Uploader = function (options) {
         total = data.size;
     }
 
-
     function finish() {
         // Finish the upload by telling the store the upload is complete
-        Meteor.call('ufsComplete', fileId, store.getName(), function (err, uploadedFile) {
+        Meteor.call('ufsComplete', fileId, store.getName(), token, function (err, uploadedFile) {
             if (err) {
                 // todo retry instead of abort
                 self.abort();
@@ -153,7 +153,7 @@ UploadFS.Uploader = function (options) {
      */
     self.abort = function () {
         // Remove the file from database
-        Meteor.call('ufsDelete', fileId, store.getName(), function (err, result) {
+        Meteor.call('ufsDelete', fileId, store.getName(), token, function (err, result) {
             if (err) {
                 console.error('ufs: cannot remove file ' + fileId + ' (' + err.message + ')');
                 self.onError(err);
@@ -320,8 +320,8 @@ UploadFS.Uploader = function (options) {
                 // Use adaptive length
                 if (self.adaptive && timeA && timeB && timeB > timeA) {
                     let duration = (timeB - timeA) / 1000;
-                    let max = self.capacity * (1 + (capacityMargin / 100));
-                    let min = self.capacity * (1 - (capacityMargin / 100));
+                    let max = self.capacity * (1 + capacityMargin);
+                    let min = self.capacity * (1 - capacityMargin);
 
                     if (duration >= max) {
                         chunkSize = Math.abs(Math.round(chunkSize * (max - duration)));
@@ -406,6 +406,7 @@ UploadFS.Uploader = function (options) {
                 if (err) {
                     self.onError(err);
                 } else if (result) {
+                    token = result.token;
                     postUrl = result.url;
                     fileId = result.fileId;
                     file._id = result.fileId;
@@ -436,7 +437,7 @@ UploadFS.Uploader = function (options) {
             uploading = false;
             self.onStop(file);
 
-            Meteor.call('ufsStop', fileId, store.getName(), function (err, result) {
+            Meteor.call('ufsStop', fileId, store.getName(), token, function (err, result) {
                 if (err) {
                     self.onError(err);
                 }
