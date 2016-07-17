@@ -133,7 +133,7 @@ UploadFS.Uploader = function (options) {
 
     function finish() {
         // Finish the upload by telling the store the upload is complete
-        store.complete(fileId, function (err, uploadedFile) {
+        Meteor.call('ufsComplete', fileId, store.getName(), function (err, uploadedFile) {
             if (err) {
                 // todo retry instead of abort
                 self.abort();
@@ -378,13 +378,14 @@ UploadFS.Uploader = function (options) {
                     // let formData = new FormData();
                     // formData.append('progress', progress);
                     // formData.append('chunk', chunk);
+                    let url = postUrl + '&progress=' + progress;
 
                     timeA = Date.now();
                     timeB = null;
                     uploading = true;
 
                     // Send chunk to the store
-                    xhr.open('POST', postUrl, true);
+                    xhr.open('POST', url, true);
                     xhr.send(chunk);
                 });
 

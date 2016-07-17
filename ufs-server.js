@@ -82,9 +82,13 @@ WebApp.connectHandlers.use(function (req, res, next) {
             return;
         }
 
-        let progress = req.query.progress || 0; // todo get progress from POST
         let tmpFile = UploadFS.getTempFilePath(fileId);
         let ws = fs.createWriteStream(tmpFile, {flags: 'a'});
+        let fields = {uploading: true};
+        let progress = parseFloat(req.query.progress);
+        if (!isNaN(progress) && progress > 0) {
+            fields.progress = Math.min(progress, 1);
+        }
 
         req.on('readable', Meteor.bindEnvironment(function () {
             ws.write(req.read());
@@ -95,12 +99,7 @@ WebApp.connectHandlers.use(function (req, res, next) {
         }));
         req.on('end', Meteor.bindEnvironment(function () {
             // Update completed state
-            store.getCollection().update(fileId, {
-                $set: {
-                    progress: Math.min(progress, 1.0),
-                    uploading: true
-                }
-            });
+            store.getCollection().update(fileId, {$set: fields});
             ws.end();
         }));
         ws.on('error', Meteor.bindEnvironment(function (err) {

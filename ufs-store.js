@@ -337,15 +337,6 @@ UploadFS.Store = function (options) {
 };
 
 /**
- * Completes the file upload
- * @param fileId
- * @param callback
- */
-UploadFS.Store.prototype.complete = function (fileId, callback) {
-    Meteor.call('ufsComplete', fileId, this.getName(), callback);
-};
-
-/**
  * Returns the file URL
  * @param fileId
  */
