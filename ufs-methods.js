@@ -12,7 +12,7 @@ Meteor.methods({
         // Allow other uploads to run concurrently
         this.unblock();
 
-        var store = UploadFS.getStore(storeName);
+        let store = UploadFS.getStore(storeName);
         if (!store) {
             throw new Meteor.Error(404, 'store "' + storeName + '" does not exist');
         }
@@ -21,11 +21,11 @@ Meteor.methods({
             throw new Meteor.Error(404, 'file "' + fileId + '" does not exist');
         }
 
-        var fut = new Future();
-        var tmpFile = UploadFS.getTempFilePath(fileId);
+        let fut = new Future();
+        let tmpFile = UploadFS.getTempFilePath(fileId);
 
         // Get the temp file
-        var rs = fs.createReadStream(tmpFile, {
+        let rs = fs.createReadStream(tmpFile, {
             flags: 'r',
             encoding: null,
             autoClose: true
@@ -53,6 +53,73 @@ Meteor.methods({
     },
 
     /**
+     * Creates the file and returns the file upload token
+     * @param file
+     * @returns {{fileId: string, url: string}}
+     */
+    ufsCreate: function (file) {
+        check(file, Object);
+
+        if (typeof file.name !== 'string' || !file.name.length) {
+            throw new Meteor.Error('invalid-file-name', "file name is not valid");
+        }
+        if (typeof file.store !== 'string' || !file.store.length) {
+            throw new Meteor.Error('invalid-store', "store is not valid");
+        }
+
+        // Get store
+        let store = UploadFS.getStore(file.store);
+        if (!store) {
+            throw new Meteor.Error('invalid-store', "store is not valid");
+        }
+
+        // Set default info
+        file.complete = false;
+        file.uploading = false;
+        file.extension = file.name && file.name.substr((~-file.name.lastIndexOf('.') >>> 0) + 2).toLowerCase();
+        file.progress = 0;
+        file.size = parseInt(file.size) || 0;
+        file.userId = file.userId || this.userId;
+
+        // Check if the file matches store filter
+        let filter = store.getFilter();
+        if (filter instanceof UploadFS.Filter) {
+            filter.check(file);
+        }
+
+        // Create the file
+        let fileId = store.create(file);
+        let token = store.createToken(fileId);
+        let uploadUrl = store.getURL() + '/' + fileId + '?token=' + token;
+
+        return {fileId: fileId, url: uploadUrl};
+    },
+
+    /**
+     * Deletes a file
+     * @param fileId
+     * @param storeName
+     * @returns {*}
+     */
+    ufsDelete: function (fileId, storeName) {
+        check(fileId, String);
+        check(storeName, String);
+
+        // Check store
+        let store = UploadFS.getStore(storeName);
+        if (!store) {
+            throw new Meteor.Error('invalid-store', "Store not found");
+        }
+        // Check file
+        let file = store.getCollection().find(fileId, {fields: {userId: 1}});
+        if (!file) {
+            throw new Meteor.Error('invalid-file', "File not found");
+        }
+        // todo do some security checks
+        return store.getCollection().remove(fileId);
+    },
+
+    /**
      * Imports a file from the URL
      * @param url
      * @param file
@@ -66,7 +133,7 @@ Meteor.methods({
 
         this.unblock();
 
-        var store = UploadFS.getStore(storeName);
+        let store = UploadFS.getStore(storeName);
         if (!store) {
             throw new Meteor.Error(404, 'Store "' + storeName + '" does not exist');
         }
@@ -83,14 +150,14 @@ Meteor.methods({
                 store.getFilter().check(file);
             }
             // Create the file
-            var fileId = store.create(file);
+            let fileId = store.create(file);
 
         } catch (err) {
             throw new Meteor.Error(500, err.message);
         }
 
-        var fut = new Future();
-        var proto;
+        let fut = new Future();
+        let proto;
 
         // Detect protocol to use
         if (/http:\/\//i.test(url)) {
@@ -116,57 +183,28 @@ Meteor.methods({
     },
 
     /**
-     * Saves a chunk of file
-     * @param chunk
+     * Marks the file uploading as stopped
      * @param fileId
      * @param storeName
-     * @param progress
-     * @return {*}
+     * @returns {*}
      */
-    ufsWrite: function (chunk, fileId, storeName, progress) {
+    ufsStop: function (fileId, storeName) {
         check(fileId, String);
         check(storeName, String);
-        check(progress, Number);
 
-        this.unblock();
-
-        // Check arguments
-        if (!(chunk instanceof Uint8Array)) {
-            throw new Meteor.Error(400, 'chunk is not an Uint8Array');
-        }
-        if (chunk.length <= 0) {
-            throw new Meteor.Error(400, 'chunk is empty');
-        }
-
-        var store = UploadFS.getStore(storeName);
+        // Check store
+        let store = UploadFS.getStore(storeName);
         if (!store) {
-            throw new Meteor.Error(404, 'store ' + storeName + ' does not exist');
+            throw new Meteor.Error('invalid-store', "Store not found");
         }
-
-        // Check that file exists, is not complete and is owned by current user
-        if (store.getCollection().find({_id: fileId, complete: false, userId: this.userId}).count() < 1) {
-            throw new Meteor.Error(404, 'file ' + fileId + ' does not exist');
+        // Check file
+        let file = store.getCollection().find(fileId, {fields: {userId: 1}});
+        if (!file) {
+            throw new Meteor.Error('invalid-file', "File not found");
         }
-
-        var fut = new Future();
-        var tmpFile = UploadFS.getTempFilePath(fileId);
-
-        // Save the chunk
-        fs.appendFile(tmpFile, new Buffer(chunk), Meteor.bindEnvironment(function (err) {
-            if (err) {
-                console.error('ufs: cannot write chunk of file "' + fileId + '" (' + err.message + ')');
-                fs.unlink(tmpFile, function (err) {
-                    err && console.error('ufs: cannot delete temp file ' + tmpFile + ' (' + err.message + ')');
-                });
-                fut.throw(err);
-            } else {
-                // Update completed state
-                store.getCollection().update(fileId, {
-                    $set: {progress: Math.min(progress, 1.0)}
-                });
-                fut.return(chunk.length);
-            }
-        }));
-        return fut.wait();
+        // todo do some security checks
+        return store.getCollection().update(fileId, {
+            $set: {uploading: false}
+        });
     }
 });

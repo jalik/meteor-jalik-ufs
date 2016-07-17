@@ -4,13 +4,13 @@
  * @constructor
  */
 UploadFS.Uploader = function (options) {
-    var self = this;
+    let self = this;
 
     // Set default options
     options = _.extend({
         adaptive: true,
         capacity: 0.9,
-        chunkSize: 8 * 1024,
+        chunkSize: 16 * 1024,
         data: null,
         file: null,
         maxChunkSize: 4 * 1024 * 1000,
@@ -22,13 +22,10 @@ UploadFS.Uploader = function (options) {
         onProgress: UploadFS.Uploader.prototype.onProgress,
         onStart: UploadFS.Uploader.prototype.onStart,
         onStop: UploadFS.Uploader.prototype.onStop,
-        store: null
+        retryDelay: 2000,
+        store: null,
+        transferDelay: 100
     }, options);
-
-    // Check instance
-    if (!(self instanceof UploadFS.Uploader)) {
-        throw new Error('UploadFS.Uploader is not an instance');
-    }
 
     // Check options
     if (typeof options.adaptive !== 'boolean') {
@@ -54,6 +51,12 @@ UploadFS.Uploader = function (options) {
     }
     if (typeof options.maxTries !== 'number') {
         throw new TypeError('maxTries is not a number');
+    }
+    if (typeof options.retryDelay !== 'number') {
+        throw new TypeError('retryDelay is not a number');
+    }
+    if (typeof options.transferDelay !== 'number') {
+        throw new TypeError('transferDelay is not a number');
     }
     if (typeof options.onAbort !== 'function') {
         throw new TypeError('onAbort is not a function');
@@ -86,6 +89,8 @@ UploadFS.Uploader = function (options) {
     self.chunkSize = parseInt(options.chunkSize);
     self.maxChunkSize = parseInt(options.maxChunkSize);
     self.maxTries = parseInt(options.maxTries);
+    self.retryDelay = parseInt(options.retryDelay);
+    self.transferDelay = parseInt(options.transferDelay);
     self.onAbort = options.onAbort;
     self.onComplete = options.onComplete;
     self.onCreate = options.onCreate;
@@ -95,24 +100,24 @@ UploadFS.Uploader = function (options) {
     self.onStop = options.onStop;
 
     // Private attributes
-    var store = options.store;
-    var data = options.data;
-    var capacityMargin = 10; //%
-    var file = options.file;
-    var fileId = null;
-    var offset = 0;
-    var total = 0;
-    var tries = 0;
+    let store = options.store;
+    let data = options.data;
+    let capacityMargin = 10; //%
+    let file = options.file;
+    let fileId = null;
+    let offset = 0;
+    let loaded = 0;
+    let total = 0;
+    let tries = 0;
+    let postUrl = null;
+    let complete = false;
+    let uploading = false;
 
-    var complete = new ReactiveVar(false);
-    var loaded = new ReactiveVar(0);
-    var uploading = new ReactiveVar(false);
+    let timeA = null;
+    let timeB = null;
 
-    var timeA = null;
-    var timeB = null;
-
-    var elapsedTime = 0;
-    var startTime = 0;
+    let elapsedTime = 0;
+    let startTime = 0;
 
     // Assign file to store
     file.store = store.getName();
@@ -125,25 +130,45 @@ UploadFS.Uploader = function (options) {
         total = data.size;
     }
 
+
+    function finish() {
+        // Finish the upload by telling the store the upload is complete
+        store.complete(fileId, function (err, uploadedFile) {
+            if (err) {
+                // todo retry instead of abort
+                self.abort();
+
+            } else if (uploadedFile) {
+                elapsedTime = Date.now() - startTime;
+                uploading = false;
+                complete = true;
+                file = uploadedFile;
+                self.onComplete(uploadedFile);
+            }
+        });
+    }
+
     /**
      * Aborts the current transfer
      */
     self.abort = function () {
-        uploading.set(false);
-
         // Remove the file from database
-        store.getCollection().remove(fileId, function (err) {
+        Meteor.call('ufsDelete', fileId, store.getName(), function (err, result) {
             if (err) {
                 console.error('ufs: cannot remove file ' + fileId + ' (' + err.message + ')');
-            } else {
-                fileId = null;
-                offset = 0;
-                tries = 0;
-                loaded.set(0);
-                complete.set(false);
-                self.onAbort(file);
+                self.onError(err);
             }
         });
+
+        // Reset uploader status
+        uploading = false;
+        fileId = null;
+        offset = 0;
+        tries = 0;
+        loaded = 0;
+        complete = false;
+        startTime = null;
+        self.onAbort(file);
     };
 
     /**
@@ -178,7 +203,7 @@ UploadFS.Uploader = function (options) {
      * @return {number}
      */
     self.getLoaded = function () {
-        return loaded.get() || 0;
+        return loaded;
     };
 
     /**
@@ -186,7 +211,7 @@ UploadFS.Uploader = function (options) {
      * @return {number}
      */
     self.getProgress = function () {
-        return Math.min((loaded.get() / total) * 100 / 100, 1.0);
+        return Math.min((loaded / total) * 100 / 100, 1.0);
     };
 
     /**
@@ -194,9 +219,9 @@ UploadFS.Uploader = function (options) {
      * @returns {number}
      */
     self.getRemainingTime = function () {
-        var averageSpeed = self.getAverageSpeed();
-        var remainingBytes = total - self.getLoaded();
-        return averageSpeed && remainingBytes ? (remainingBytes / averageSpeed) : 0;
+        let averageSpeed = self.getAverageSpeed();
+        let remainingBytes = total - self.getLoaded();
+        return averageSpeed && remainingBytes ? Math.max(remainingBytes / averageSpeed, 0) : 0;
     };
 
     /**
@@ -205,7 +230,7 @@ UploadFS.Uploader = function (options) {
      */
     self.getSpeed = function () {
         if (timeA && timeB && self.isUploading()) {
-            var duration = timeB - timeA;
+            let duration = timeB - timeA;
             return self.chunkSize / (duration / 1000);
         }
         return 0;
@@ -224,7 +249,7 @@ UploadFS.Uploader = function (options) {
      * @return {boolean}
      */
     self.isComplete = function () {
-        return complete.get();
+        return complete;
     };
 
     /**
@@ -232,7 +257,7 @@ UploadFS.Uploader = function (options) {
      * @return {boolean}
      */
     self.isUploading = function () {
-        return uploading.get();
+        return uploading;
     };
 
     /**
@@ -240,38 +265,132 @@ UploadFS.Uploader = function (options) {
      * @param start
      * @param length
      * @param callback
-     * @returns {Uint8Array}
+     * @returns {Blob}
      */
     self.readChunk = function (start, length, callback) {
         if (typeof callback != 'function') {
-            throw new Error('missing callback');
+            throw new Error('readChunk is missing callback');
         }
+        // Read ArrayBuffer
+        // if (data instanceof ArrayBuffer) {
+        //     // Calculate the chunk size
+        //     if (length && start + length > total) {
+        //         length = total - start;
+        //     }
+        //     callback.call(self, null, new Uint8Array(data, start, length));
+        // }
 
-        if (data instanceof ArrayBuffer) {
-            // Calculate the chunk size
-            if (length && start + length > total) {
-                length = total - start;
+        // Read File/Blob
+        if (data instanceof File || data instanceof Blob) {
+            try {
+                let end;
+
+                // Calculate the chunk size
+                if (length && start + length > total) {
+                    end = total;
+                } else {
+                    end = start + length;
+                }
+                // Get chunk
+                let chunk = data.slice(start, end);
+                // Pass chunk to callback
+                callback.call(self, null, chunk);
+
+            } catch (err) {
+                console.error('read error', err);
+                // Retry to read chunk
+                Meteor.setTimeout(function () {
+                    if (tries < self.maxTries) {
+                        tries += 1;
+                        self.readChunk(start, length, callback);
+                    }
+                }, self.retryDelay);
             }
-            callback.call(self, null, new Uint8Array(data, start, length));
         }
+    };
 
-        if (data instanceof File) {
-            // Calculate the chunk size
-            if (length && start + length > total) {
-                length = total;
+    /**
+     * Sends a file chunk to the store
+     */
+    self.sendChunk = function () {
+        if (!complete && startTime !== null) {
+            if (offset < total) {
+                let chunkSize = self.chunkSize;
+
+                // Use adaptive length
+                if (self.adaptive && timeA && timeB && timeB > timeA) {
+                    let duration = (timeB - timeA) / 1000;
+                    let max = self.capacity * (1 + (capacityMargin / 100));
+                    let min = self.capacity * (1 - (capacityMargin / 100));
+
+                    if (duration >= max) {
+                        chunkSize = Math.abs(Math.round(chunkSize * (max - duration)));
+
+                    } else if (duration < min) {
+                        chunkSize = Math.round(chunkSize * (min / duration));
+                    }
+                    // Limit to max chunk size
+                    if (self.maxChunkSize > 0 && chunkSize > self.maxChunkSize) {
+                        chunkSize = self.maxChunkSize;
+                    }
+                }
+
+                // Limit to max chunk size
+                if (self.maxChunkSize > 0 && chunkSize > self.maxChunkSize) {
+                    chunkSize = self.maxChunkSize;
+                }
+
+                // Prepare the chunk
+                self.readChunk(offset, chunkSize, function (err, chunk) {
+                    if (err) {
+                        self.onError(err, file);
+                        return;
+                    }
+
+                    let xhr = new XMLHttpRequest();
+                    xhr.onreadystatechange = function () {
+                        if (xhr.readyState === 4) {
+                            if (_.contains([200, 201, 202, 204], xhr.status)) {
+                                timeB = Date.now();
+                                offset += chunkSize;
+                                loaded += chunkSize;
+
+                                // Send next chunk
+                                self.onProgress(file, self.getProgress());
+                                Meteor.setTimeout(self.sendChunk, self.transferDelay);
+
+                            } else if (!_.contains([402, 403, 404, 500], xhr.status)) {
+                                // Retry until max tries is reach
+                                // But don't retry if these errors occur
+                                if (tries <= self.maxTries) {
+                                    tries += 1;
+                                    // Wait before retrying
+                                    Meteor.setTimeout(self.sendChunk, self.retryDelay);
+                                } else {
+                                    self.abort();
+                                }
+                            }
+                        }
+                    };
+
+                    // Calculate upload progress
+                    let progress = (offset + chunkSize) / total;
+                    // let formData = new FormData();
+                    // formData.append('progress', progress);
+                    // formData.append('chunk', chunk);
+
+                    timeA = Date.now();
+                    timeB = null;
+                    uploading = true;
+
+                    // Send chunk to the store
+                    xhr.open('POST', postUrl, true);
+                    xhr.send(chunk);
+                });
+
             } else {
-                length = start + length;
+                finish();
             }
-            var blob = data.slice(start, length);
-            var reader = new FileReader();
-            reader.onerror = function (err) {
-                callback.call(self, err);
-            };
-            reader.onload = function (ev) {
-                var result = ev.target.result;
-                callback.call(self, null, new Uint8Array(result));
-            };
-            reader.readAsArrayBuffer(blob);
         }
     };
 
@@ -279,116 +398,29 @@ UploadFS.Uploader = function (options) {
      * Starts or resumes the transfer
      */
     self.start = function () {
-        if (!uploading.get() && !complete.get()) {
-            var length = self.chunkSize;
+        if (!fileId) {
+            // Create the file document and get the token
+            // that allows the user to send chunks to the store.
+            Meteor.call('ufsCreate', _.extend({}, file), function (err, result) {
+                if (err) {
+                    self.onError(err);
+                } else if (result) {
+                    postUrl = result.url;
+                    fileId = result.fileId;
+                    file._id = result.fileId;
+                    self.onCreate(file);
+                    tries = 0;
+                    startTime = Date.now();
+                    self.onStart(file);
+                    self.sendChunk();
+                }
+            });
+        } else if (!uploading && !complete) {
+            // Resume uploading
+            tries = 0;
             startTime = Date.now();
             self.onStart(file);
-
-            function finish() {
-                // Finish the upload by telling the store the upload is complete
-                store.complete(fileId, function (err, uploadedFile) {
-                    if (err) {
-                        // todo retry instead of abort
-                        self.abort();
-
-                    } else if (uploadedFile) {
-                        elapsedTime = Date.now() - startTime;
-                        uploading.set(false);
-                        complete.set(true);
-                        file = uploadedFile;
-                        self.onComplete(uploadedFile);
-                    }
-                });
-            }
-
-            function writeChunk() {
-                if (uploading.get() && !complete.get()) {
-                    if (offset < total) {
-                        timeA = Date.now();
-                        timeB = null;
-
-                        // Prepare the chunk
-                        self.readChunk(offset, length, function (err, chunk) {
-                            if (err) {
-                                console.error(err);
-                                self.onError(err);
-                            }
-
-                            var progress = (offset + length) / total;
-
-                            // Write the chunk to the store
-                            store.writeChunk(chunk, fileId, progress, function (err, bytes) {
-                                if (err || !bytes) {
-                                    // Retry until max tries is reach
-                                    // But don't retry if these errors occur
-                                    if (tries < self.maxTries && !_.contains([400, 404], err.error)) {
-                                        tries += 1;
-
-                                        // Wait 1 sec before retrying
-                                        Meteor.setTimeout(writeChunk, 1000);
-
-                                    } else {
-                                        self.abort();
-                                        self.onError(err);
-                                    }
-                                } else {
-                                    timeB = Date.now();
-                                    offset += bytes;
-                                    loaded.set(loaded.get() + bytes);
-
-                                    // Use adaptive length
-                                    if (self.adaptive && timeA && timeB && timeB > timeA) {
-                                        var duration = (timeB - timeA) / 1000;
-
-                                        var max = self.capacity * (1 + (capacityMargin / 100));
-                                        var min = self.capacity * (1 - (capacityMargin / 100));
-
-                                        if (duration >= max) {
-                                            length = Math.abs(Math.round(bytes * (max - duration)));
-
-                                        } else if (duration < min) {
-                                            length = Math.round(bytes * (min / duration));
-                                        }
-                                        // Limit to max chunk size
-                                        if (self.maxChunkSize > 0 && length > self.maxChunkSize) {
-                                            length = self.maxChunkSize;
-                                        }
-                                    }
-                                    self.onProgress(file, self.getProgress());
-                                    writeChunk();
-                                }
-                            });
-                        });
-
-                    } else {
-                        finish();
-                    }
-                }
-            }
-
-            if (!fileId) {
-                // Insert the file in the collection
-                store.getCollection().insert(file, function (err, uploadId) {
-                    if (err) {
-                        self.onError(err);
-                    } else {
-                        fileId = uploadId;
-                        file._id = fileId;
-                        self.onCreate(file);
-                        uploading.set(true);
-                        writeChunk();
-                    }
-                });
-            } else {
-                store.getCollection().update(fileId, {
-                    $set: {uploading: true}
-                }, function (err, result) {
-                    if (!err && result) {
-                        uploading.set(true);
-                        writeChunk();
-                    }
-                });
-            }
+            self.sendChunk();
         }
     };
 
@@ -396,13 +428,18 @@ UploadFS.Uploader = function (options) {
      * Stops the transfer
      */
     self.stop = function () {
-        if (uploading.get()) {
+        if (uploading) {
+            // Update elapsed time
             elapsedTime = Date.now() - startTime;
-            uploading.set(false);
-            store.getCollection().update(fileId, {
-                $set: {uploading: false}
-            });
+            startTime = null;
+            uploading = false;
             self.onStop(file);
+
+            Meteor.call('ufsStop', fileId, store.getName(), function (err, result) {
+                if (err) {
+                    self.onError(err);
+                }
+            });
         }
     };
 };

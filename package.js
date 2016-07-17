@@ -11,9 +11,9 @@ Package.describe({
 Package.onUse(function (api) {
     api.versionsFrom('1.1.0.2');
     api.use('check');
+    api.use('ecmascript');
     api.use('matb33:collection-hooks@0.7.13');
     api.use('mongo');
-    api.use('reactive-var', 'client');
     api.use('templating', 'client');
     api.use('underscore');
     api.use('webapp', 'server');

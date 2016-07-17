@@ -1,10 +1,14 @@
-var stores = {};
+let stores = {};
 
 UploadFS = {
     /**
      * Contains all stores
      */
     store: {},
+    /**
+     * Collection of tokens
+     */
+    tokens: new Mongo.Collection('ufsTokens'),
     /**
      * Returns the temporary file path
      * @param fileId
@@ -40,21 +44,6 @@ UploadFS = {
     }
 };
 
-if (Meteor.isServer) {
-    /**
-     * Generates a random token using a pattern (xy)
-     * @param pattern
-     * @return {string}
-     */
-    UploadFS.generateToken = function (pattern) {
-        return (pattern || 'xyxyxyxyxy').replace(/[xy]/g, function (c) {
-            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-            var s = v.toString(16);
-            return Math.round(Math.random()) ? s.toUpperCase() : s;
-        });
-    };
-}
-
 if (Meteor.isClient) {
 
     /**
@@ -70,13 +59,13 @@ if (Meteor.isClient) {
         // todo remove warning and method in future releases
         console.warn('UploadFS.readAsArrayBuffer is deprecated and will be removed in future versions, see https://github.com/jalik/jalik-ufs#uploading-from-a-file');
 
-        var files = event.target.files;
+        let files = event.target.files;
 
-        for (var i = 0; i < files.length; i += 1) {
-            var file = files[i];
+        for (let i = 0; i < files.length; i += 1) {
+            let file = files[i];
 
             (function (file) {
-                var reader = new FileReader();
+                let reader = new FileReader();
                 reader.onload = function (ev) {
                     callback.call(UploadFS, ev.target.result, file);
                 };
@@ -90,11 +79,11 @@ if (Meteor.isClient) {
      * @param callback
      */
     UploadFS.selectFile = function (callback) {
-        var img = document.createElement('input');
+        let img = document.createElement('input');
         img.type = 'file';
         img.multiple = false;
         img.onchange = function (ev) {
-            var files = ev.target.files;
+            let files = ev.target.files;
             callback.call(UploadFS, files[0]);
         };
         img.click();
@@ -105,13 +94,13 @@ if (Meteor.isClient) {
      * @param callback
      */
     UploadFS.selectFiles = function (callback) {
-        var img = document.createElement('input');
+        let img = document.createElement('input');
         img.type = 'file';
         img.multiple = true;
         img.onchange = function (ev) {
-            var files = ev.target.files;
+            let files = ev.target.files;
 
-            for (var i = 0; i < files.length; i += 1) {
+            for (let i = 0; i < files.length; i += 1) {
                 callback.call(UploadFS, files[i]);
             }
         };

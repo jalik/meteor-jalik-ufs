@@ -4,12 +4,15 @@ Future = Npm.require('fibers/future');
 http = Npm.require('http');
 https = Npm.require('https');
 mkdirp = Npm.require('mkdirp');
+querystring = Npm.require('querystring');
 stream = Npm.require('stream');
+URL = Npm.require('url');
 zlib = Npm.require('zlib');
 
+
 Meteor.startup(function () {
-    var path = UploadFS.config.tmpDir;
-    var mode = '0744';
+    let path = UploadFS.config.tmpDir;
+    let mode = '0744';
 
     fs.stat(path, function (err) {
         if (err) {
@@ -32,7 +35,7 @@ Meteor.startup(function () {
 
 // Create domain to handle errors
 // and possibly avoid server crashes.
-var d = domain.create();
+let d = domain.create();
 
 d.on('error', function (err) {
     console.error('ufs: ' + err.message);
@@ -47,111 +50,176 @@ WebApp.connectHandlers.use(function (req, res, next) {
     }
 
     // Remove store path
-    var path = req.url.substr(UploadFS.config.storesPath.length + 1);
+    let parsedUrl = URL.parse(req.url);
+    let path = parsedUrl.pathname.substr(UploadFS.config.storesPath.length + 1);
 
-    // Get store, file Id and file name
-    var regExp = new RegExp('^\/([^\/]+)\/([^\/]+)(?:\/([^\/]+))?$');
-    var match = regExp.exec(path);
-
-    if (match !== null) {
+    if (req.method === 'POST') {
         // Get store
-        var storeName = match[1];
-        var store = UploadFS.getStore(storeName);
+        let regExp = new RegExp('^\/([^\/\?]+)\/([^\/\?]+)$');
+        let match = regExp.exec(path);
 
+        // Request is not valid
+        if (match === null) {
+            res.writeHead(400);
+            res.end();
+            return;
+        }
+
+        // Get store
+        let store = UploadFS.getStore(match[1]);
         if (!store) {
             res.writeHead(404);
             res.end();
             return;
         }
 
-        if (store.onRead !== null && store.onRead !== undefined && typeof store.onRead !== 'function') {
-            console.error('ufs: store "' + storeName + '" onRead is not a function');
-            res.writeHead(500);
-            res.end();
-            return;
-        }
-
-        // Remove file extension from file Id
-        var index = match[2].indexOf('.');
-        var fileId = index !== -1 ? match[2].substr(0, index) : match[2];
-
-        // Get file from database
-        var file = store.getCollection().findOne(fileId);
+        // Get file
+        let fileId = match[2];
+        let file = store.getCollection().find(fileId);
         if (!file) {
             res.writeHead(404);
             res.end();
             return;
         }
 
-        // Simulate read speed
-        if (UploadFS.config.simulateReadDelay) {
-            Meteor._sleepForMs(UploadFS.config.simulateReadDelay);
-        }
+        let progress = req.query.progress || 0; // todo get progress from POST
+        let tmpFile = UploadFS.getTempFilePath(fileId);
+        let ws = fs.createWriteStream(tmpFile, {flags: 'a'});
 
-        d.run(function () {
-            // Check if the file can be accessed
-            if (store.onRead.call(store, fileId, file, req, res)) {
-                // Open the file stream
-                var rs = store.getReadStream(fileId, file);
-                var ws = new stream.PassThrough();
+        req.on('readable', Meteor.bindEnvironment(function () {
+            ws.write(req.read());
+        }));
+        req.on('error', Meteor.bindEnvironment(function (err) {
+            res.writeHead(500);
+            res.end();
+        }));
+        req.on('end', Meteor.bindEnvironment(function () {
+            // Update completed state
+            store.getCollection().update(fileId, {
+                $set: {
+                    progress: Math.min(progress, 1.0),
+                    uploading: true
+                }
+            });
+            ws.end();
+        }));
+        ws.on('error', Meteor.bindEnvironment(function (err) {
+            console.error('ufs: cannot write chunk of file "' + fileId + '" (' + err.message + ')');
+            fs.unlink(tmpFile, Meteor.bindEnvironment(function (err) {
+                err && console.error('ufs: cannot delete temp file ' + tmpFile + ' (' + err.message + ')');
+            }));
+            res.writeHead(500);
+            res.end();
+        }));
+        ws.on('finish', function () {
+            res.writeHead(204, {"Content-Type": 'text/plain'});
+            res.end();
+        });
+    }
+    else if (req.method == 'GET') {
+        // Get store, file Id and file name
+        let regExp = new RegExp('^\/([^\/\?]+)\/([^\/\?]+)(?:\/([^\/\?]+))?$');
+        let match = regExp.exec(path);
 
-                rs.on('error', function (err) {
-                    store.onReadError.call(store, err, fileId, file);
-                    res.end();
-                });
-                ws.on('error', function (err) {
-                    store.onReadError.call(store, err, fileId, file);
-                    res.end();
-                });
-                ws.on('close', function () {
-                    // Close output stream at the end
-                    ws.emit('end');
-                });
+        if (match !== null) {
+            // Get store
+            let storeName = match[1];
+            let store = UploadFS.getStore(storeName);
 
-                var headers = {
-                    'Content-Type': file.type,
-                    'Content-Length': file.size
-                };
+            if (!store) {
+                res.writeHead(404);
+                res.end();
+                return;
+            }
 
-                // Transform stream
-                store.transformRead(rs, ws, fileId, file, req, headers);
+            if (store.onRead !== null && store.onRead !== undefined && typeof store.onRead !== 'function') {
+                console.error('ufs: store "' + storeName + '" onRead is not a function');
+                res.writeHead(500);
+                res.end();
+                return;
+            }
 
-                // Parse headers
-                if (typeof req.headers === 'object') {
-                    // Compress data using accept-encoding header
-                    if (typeof req.headers['accept-encoding'] === 'string') {
-                        var accept = req.headers['accept-encoding'];
+            // Remove file extension from file Id
+            let index = match[2].indexOf('.');
+            let fileId = index !== -1 ? match[2].substr(0, index) : match[2];
 
-                        // Compress with gzip
-                        if (accept.match(/\bgzip\b/)) {
-                            headers['Content-Encoding'] = 'gzip';
-                            delete headers['Content-Length'];
-                            res.writeHead(200, headers);
-                            ws.pipe(zlib.createGzip()).pipe(res);
-                            return;
-                        }
-                        // Compress with deflate
-                        else if (accept.match(/\bdeflate\b/)) {
-                            headers['Content-Encoding'] = 'deflate';
-                            delete headers['Content-Length'];
-                            res.writeHead(200, headers);
-                            ws.pipe(zlib.createDeflate()).pipe(res);
-                            return;
+            // Get file from database
+            let file = store.getCollection().findOne(fileId);
+            if (!file) {
+                res.writeHead(404);
+                res.end();
+                return;
+            }
+
+            // Simulate read speed
+            if (UploadFS.config.simulateReadDelay) {
+                Meteor._sleepForMs(UploadFS.config.simulateReadDelay);
+            }
+
+            d.run(function () {
+                // Check if the file can be accessed
+                if (store.onRead.call(store, fileId, file, req, res)) {
+                    // Open the file stream
+                    let rs = store.getReadStream(fileId, file);
+                    let ws = new stream.PassThrough();
+
+                    rs.on('error', function (err) {
+                        store.onReadError.call(store, err, fileId, file);
+                        res.end();
+                    });
+                    ws.on('error', function (err) {
+                        store.onReadError.call(store, err, fileId, file);
+                        res.end();
+                    });
+                    ws.on('close', function () {
+                        // Close output stream at the end
+                        ws.emit('end');
+                    });
+
+                    let headers = {
+                        'Content-Type': file.type,
+                        'Content-Length': file.size
+                    };
+
+                    // Transform stream
+                    store.transformRead(rs, ws, fileId, file, req, headers);
+
+                    // Parse headers
+                    if (typeof req.headers === 'object') {
+                        // Compress data using accept-encoding header
+                        if (typeof req.headers['accept-encoding'] === 'string') {
+                            let accept = req.headers['accept-encoding'];
+
+                            // Compress with gzip
+                            if (accept.match(/\bgzip\b/)) {
+                                headers['Content-Encoding'] = 'gzip';
+                                delete headers['Content-Length'];
+                                res.writeHead(200, headers);
+                                ws.pipe(zlib.createGzip()).pipe(res);
+                                return;
+                            }
+                            // Compress with deflate
+                            else if (accept.match(/\bdeflate\b/)) {
+                                headers['Content-Encoding'] = 'deflate';
+                                delete headers['Content-Length'];
+                                res.writeHead(200, headers);
+                                ws.pipe(zlib.createDeflate()).pipe(res);
+                                return;
+                            }
                         }
                     }
+
+                    // Send raw data
+                    if (!headers['Content-Encoding']) {
+                        res.writeHead(200, headers);
+                        ws.pipe(res);
+                    }
+
+                } else {
+                    res.end();
                 }
-
-                // Send raw data
-                if (!headers['Content-Encoding']) {
-                    res.writeHead(200, headers);
-                    ws.pipe(res);
-                }
-
-            } else {
-                res.end();
-            }
-        });
-
+            });
+        }
     } else {
         next();
     }

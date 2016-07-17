@@ -4,7 +4,7 @@
  * @constructor
  */
 UploadFS.Filter = function (options) {
-    var self = this;
+    let self = this;
 
     // Set default options
     options = _.extend({
@@ -33,11 +33,11 @@ UploadFS.Filter = function (options) {
     }
 
     // Private attributes
-    var contentTypes = options.contentTypes;
-    var extensions = options.extensions;
-    var onCheck = options.onCheck;
-    var maxSize = parseInt(options.maxSize);
-    var minSize = parseInt(options.minSize);
+    let contentTypes = options.contentTypes;
+    let extensions = options.extensions;
+    let onCheck = options.onCheck;
+    let maxSize = parseInt(options.maxSize);
+    let minSize = parseInt(options.minSize);
 
     /**
      * Checks the file
@@ -117,8 +117,8 @@ function checkContentType(type, list) {
     if (_.contains(list, type)) {
         return true;
     } else {
-        var wildCardGlob = '/*';
-        var wildcards = _.filter(list, function (item) {
+        let wildCardGlob = '/*';
+        let wildcards = _.filter(list, function (item) {
             return item.indexOf(wildCardGlob) > 0;
         });
 

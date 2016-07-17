@@ -4,7 +4,7 @@
  * @constructor
  */
 UploadFS.Store = function (options) {
-    var self = this;
+    let self = this;
 
     // Set default options
     options = _.extend({
@@ -68,26 +68,15 @@ UploadFS.Store = function (options) {
     self.onWriteError = options.onWriteError || self.onWriteError;
 
     // Private attributes
-    var collection = options.collection;
-    var copyTo = options.copyTo;
-    var filter = options.filter;
-    var name = options.name;
-    var transformRead = options.transformRead;
-    var transformWrite = options.transformWrite;
+    let collection = options.collection;
+    let copyTo = options.copyTo;
+    let filter = options.filter;
+    let name = options.name;
+    let transformRead = options.transformRead;
+    let transformWrite = options.transformWrite;
 
     // Add the store to the list
     UploadFS.getStores()[name] = self;
-
-    /**
-     * Creates the file in the collection
-     * @param file
-     * @return {string}
-     */
-    self.create = function (file) {
-        check(file, Object);
-        file.store = name;
-        return self.getCollection().insert(file);
-    };
 
     /**
      * Returns the collection
@@ -113,7 +102,6 @@ UploadFS.Store = function (options) {
         return name;
     };
 
-
     if (Meteor.isServer) {
 
         /**
@@ -130,21 +118,21 @@ UploadFS.Store = function (options) {
             }
 
             // Get original file
-            var file = self.getCollection().findOne(fileId);
+            let file = self.getCollection().findOne(fileId);
             if (!file) {
                 throw new Meteor.Error(404, 'File not found');
             }
 
             // Prepare copy
-            var copy = _.omit(file, '_id', 'url');
+            let copy = _.omit(file, '_id', 'url');
             copy.originalStore = self.getName();
             copy.originalId = fileId;
 
             // Create the copy
-            var copyId = store.create(copy);
+            let copyId = store.create(copy);
 
             // Get original stream
-            var rs = self.getReadStream(fileId, file);
+            let rs = self.getReadStream(fileId, file);
 
             // Catch errors to avoid app crashing
             rs.on('error', Meteor.bindEnvironment(function (err) {
@@ -161,6 +149,47 @@ UploadFS.Store = function (options) {
                     callback.call(self, err, copyId, copy, store);
                 }
             }));
+        };
+
+        /**
+         * Creates the file in the collection
+         * @param file
+         * @param callback
+         * @return {string}
+         */
+        self.create = function (file, callback) {
+            check(file, Object);
+            file.store = name;
+            return self.getCollection().insert(file, callback);
+        };
+
+        /**
+         * Creates a token for the file (only needed for client side upload)
+         * @param fileId
+         * @returns {*}
+         */
+        self.createToken = function (fileId) {
+            let token = self.generateToken();
+            return token && UploadFS.tokens.upsert({fileId: fileId}, {
+                $set: {
+                    createdAt: new Date(),
+                    fileId: fileId,
+                    value: token
+                }
+            }) ? token : null;
+        };
+
+        /**
+         * Generates a random token
+         * @param pattern
+         * @return {string}
+         */
+        self.generateToken = function (pattern) {
+            return (pattern || 'xyxyxyxyxy').replace(/[xy]/g, function (c) {
+                let r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                let s = v.toString(16);
+                return Math.round(Math.random()) ? s.toUpperCase() : s;
+            });
         };
 
         /**
@@ -202,10 +231,10 @@ UploadFS.Store = function (options) {
          * @param callback
          */
         self.write = function (rs, fileId, callback) {
-            var file = self.getCollection().findOne(fileId);
-            var ws = self.getWriteStream(fileId, file);
+            let file = self.getCollection().findOne(fileId);
+            let ws = self.getWriteStream(fileId, file);
 
-            var errorHandler = Meteor.bindEnvironment(function (err) {
+            let errorHandler = Meteor.bindEnvironment(function (err) {
                 self.getCollection().remove(fileId);
                 self.onWriteError.call(self, err, fileId, file);
                 callback.call(self, err);
@@ -213,8 +242,8 @@ UploadFS.Store = function (options) {
 
             ws.on('error', errorHandler);
             ws.on('finish', Meteor.bindEnvironment(function () {
-                var size = 0;
-                var readStream = self.getReadStream(fileId, file);
+                let size = 0;
+                let readStream = self.getReadStream(fileId, file);
 
                 readStream.on('error', Meteor.bindEnvironment(function (error) {
                     callback.call(self, error, null);
@@ -227,7 +256,7 @@ UploadFS.Store = function (options) {
                     file.complete = true;
                     file.progress = 1;
                     file.size = size;
-                    file.token = UploadFS.generateToken();
+                    file.token = self.generateToken();
                     file.uploading = false;
                     file.uploadedAt = new Date();
                     file.url = self.getFileURL(fileId);
@@ -261,8 +290,8 @@ UploadFS.Store = function (options) {
 
                     // Copy file to other stores
                     if (copyTo instanceof Array) {
-                        for (var i = 0; i < copyTo.length; i += 1) {
-                            var store = copyTo[i];
+                        for (let i = 0; i < copyTo.length; i += 1) {
+                            let store = copyTo[i];
 
                             if (!store.getFilter() || store.getFilter().isValid(file)) {
                                 self.copy(fileId, store);
@@ -277,31 +306,11 @@ UploadFS.Store = function (options) {
         };
     }
 
-    // Code executed before inserting file
-    collection.before.insert(function (userId, file) {
-        if (typeof file.name !== 'string' || !file.name.length) {
-            throw new Meteor.Error(400, "file name not defined");
-        }
-        if (typeof file.store !== 'string' || !file.store.length) {
-            throw new Meteor.Error(400, "file store not defined");
-        }
-        if (typeof file.complete !== 'boolean') {
-            file.complete = false;
-        }
-        if (typeof file.uploading !== 'boolean') {
-            file.uploading = true;
-        }
-        file.extension = file.name && file.name.substr((~-file.name.lastIndexOf('.') >>> 0) + 2).toLowerCase();
-        file.progress = parseFloat(file.progress) || 0;
-        file.size = parseInt(file.size) || 0;
-        file.userId = file.userId || userId;
-    });
-
     // Code executed after removing file
     collection.after.remove(function (userId, file) {
         if (Meteor.isServer) {
             if (copyTo instanceof Array) {
-                for (var i = 0; i < copyTo.length; i += 1) {
+                for (let i = 0; i < copyTo.length; i += 1) {
                     // Remove copies in stores
                     copyTo[i].getCollection().remove({originalId: file._id});
                 }
@@ -315,7 +324,7 @@ UploadFS.Store = function (options) {
             // Delete the physical file in the store
             self.delete(file._id);
 
-            var tmpFile = UploadFS.getTempFilePath(file._id);
+            let tmpFile = UploadFS.getTempFilePath(file._id);
 
             // Delete the temp file
             fs.stat(tmpFile, function (err) {
@@ -323,17 +332,6 @@ UploadFS.Store = function (options) {
                     err && console.error('ufs: cannot delete temp file at ' + tmpFile + ' (' + err.message + ')');
                 });
             });
-        }
-    });
-
-    collection.deny({
-        // Test filter on file insertion
-        insert: function (userId, file) {
-            if (filter instanceof UploadFS.Filter) {
-                filter.check(file);
-            }
-            return typeof options.insert === 'function'
-                && !options.insert.apply(this, arguments);
         }
     });
 };
@@ -352,7 +350,7 @@ UploadFS.Store.prototype.complete = function (fileId, callback) {
  * @param fileId
  */
 UploadFS.Store.prototype.getFileURL = function (fileId) {
-    var file = this.getCollection().findOne(fileId, {
+    let file = this.getCollection().findOne(fileId, {
         fields: {name: 1}
     });
     return file && this.getURL() + '/' + fileId + '/' + encodeURIComponent(file.name);
@@ -375,17 +373,6 @@ UploadFS.Store.prototype.getURL = function () {
  */
 UploadFS.Store.prototype.importFromURL = function (url, file, callback) {
     Meteor.call('ufsImportURL', url, file, this.getName(), callback);
-};
-
-/**
- * Writes a chunk to the file
- * @param chunk
- * @param fileId
- * @param progress
- * @param callback
- */
-UploadFS.Store.prototype.writeChunk = function (chunk, fileId, progress, callback) {
-    Meteor.call('ufsWrite', chunk, fileId, this.getName(), progress, callback);
 };
 
 if (Meteor.isServer) {

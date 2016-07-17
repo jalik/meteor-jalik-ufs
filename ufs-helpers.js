@@ -1,4 +1,4 @@
-var isMIME = function (type, mime) {
+let isMIME = function (type, mime) {
     return typeof type === 'string'
         && typeof mime === 'string'
         && mime.indexOf(type + '/') === 0;
