@@ -10,9 +10,6 @@ Meteor.methods({
         check(fileId, String);
         check(storeName, String);
 
-        // Allow other uploads to run concurrently
-        this.unblock();
-
         // Get store
         let store = UploadFS.getStore(storeName);
         if (!store) {
@@ -70,7 +67,6 @@ Meteor.methods({
         if (typeof file.store !== 'string' || !file.store.length) {
             throw new Meteor.Error('invalid-store', "store is not valid");
         }
-
         // Get store
         let store = UploadFS.getStore(file.store);
         if (!store) {
@@ -143,8 +139,6 @@ Meteor.methods({
         check(url, String);
         check(file, Object);
         check(storeName, String);
-
-        this.unblock();
 
         let store = UploadFS.getStore(storeName);
         if (!store) {

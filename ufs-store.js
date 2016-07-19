@@ -128,11 +128,15 @@ UploadFS.Store = function (options) {
             if (!(store instanceof UploadFS.Store)) {
                 throw new TypeError('store is not an UploadFS.store.Store');
             }
-
             // Get original file
             let file = collection.findOne(fileId);
             if (!file) {
                 throw new Meteor.Error(404, 'File not found');
+            }
+            // Ignore the file if it does not match store filter
+            let filter = store.getFilter();
+            if (filter instanceof UploadFS.Filter && !filter.isValid(file)) {
+                return;
             }
 
             // Prepare copy

@@ -103,13 +103,13 @@ UploadFS.Filter = function (options) {
      * @return {boolean}
      */
     self.isValid = function (file) {
-        return !(
-            file.size <= 0 || file.size < self.getMinSize()
-            || self.getMaxSize() > 0 && file.size > self.getMaxSize()
-            || self.getExtensions() && !_.contains(self.getExtensions(), file.extension)
-            || self.getContentTypes() && !checkContentType(file.type, self.getContentTypes())
-            || (typeof onCheck === 'function' && !onCheck.call(self, file))
-        );
+        let result = true;
+        try {
+            self.check(file);
+        } catch (err) {
+            result = false;
+        }
+        return result;
     };
 };
 
