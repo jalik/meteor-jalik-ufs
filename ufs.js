@@ -53,25 +53,7 @@ if (Meteor.isClient) {
      * @param callback
      */
     UploadFS.readAsArrayBuffer = function (event, callback) {
-        if (typeof callback !== 'function') {
-            throw new TypeError('callback is not a function');
-        }
-        // todo remove warning and method in future releases
-        console.warn('UploadFS.readAsArrayBuffer is deprecated and will be removed in future versions, see https://github.com/jalik/jalik-ufs#uploading-from-a-file');
-
-        let files = event.target.files;
-
-        for (let i = 0; i < files.length; i += 1) {
-            let file = files[i];
-
-            (function (file) {
-                let reader = new FileReader();
-                reader.onload = function (ev) {
-                    callback.call(UploadFS, ev.target.result, file);
-                };
-                reader.readAsArrayBuffer(file);
-            })(file);
-        }
+        console.error('UploadFS.readAsArrayBuffer is deprecated, see https://github.com/jalik/jalik-ufs#uploading-from-a-file');
     };
 
     /**

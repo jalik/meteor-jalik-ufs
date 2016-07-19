@@ -1,3 +1,8 @@
+const fs = Npm.require('fs');
+const http = Npm.require('http');
+const https = Npm.require('https');
+const Future = Npm.require('fibers/future');
+
 Meteor.methods({
 
     /**
@@ -19,8 +24,6 @@ Meteor.methods({
         if (!store.checkToken(token, fileId)) {
             throw new Meteor.Error('invalid-token', "Token is not valid");
         }
-
-        // todo checkpermissions
 
         let fut = new Future();
         let tmpFile = UploadFS.getTempFilePath(fileId);
@@ -124,7 +127,7 @@ Meteor.methods({
         if (!store.checkToken(token, fileId)) {
             throw new Meteor.Error('invalid-token', "Token is not valid");
         }
-        // todo do some security checks
+
         return store.getCollection().remove(fileId);
     },
 
@@ -140,28 +143,32 @@ Meteor.methods({
         check(file, Object);
         check(storeName, String);
 
+        // Check URL
+        if (typeof url !== 'string' || url.length <= 0) {
+            throw new Meteor.Error('invalid-url', "The url is not valid");
+        }
+        // Check file
+        if (typeof file !== 'object' || file === null) {
+            throw new Meteor.Error('invalid-file', "The file is not valid");
+        }
+        // Check store
         let store = UploadFS.getStore(storeName);
         if (!store) {
-            throw new Meteor.Error(404, 'Store "' + storeName + '" does not exist');
+            throw new Meteor.Error('invalid-store', 'The store does not exist');
         }
 
-        try {
-            // Extract file info
-            if (!file.name) {
-                file.name = url.replace(/\?.*$/, '').split('/').pop();
-                file.extension = file.name.split('.').pop();
-                file.type = 'image/' + file.extension;
-            }
-            // Check if file is valid
-            if (store.getFilter() instanceof UploadFS.Filter) {
-                store.getFilter().check(file);
-            }
-            // Create the file
-            file._id = store.create(file);
-
-        } catch (err) {
-            throw new Meteor.Error(500, err.message);
+        // Extract file info
+        if (!file.name) {
+            file.name = url.replace(/\?.*$/, '').split('/').pop();
+            file.extension = file.name.split('.').pop();
+            file.type = 'image/' + file.extension;
         }
+        // Check if file is valid
+        if (store.getFilter() instanceof UploadFS.Filter) {
+            store.getFilter().check(file);
+        }
+        // Create the file
+        file._id = store.create(file);
 
         let fut = new Future();
         let proto;
@@ -214,7 +221,7 @@ Meteor.methods({
         if (!store.checkToken(token, fileId)) {
             throw new Meteor.Error('invalid-token', "Token is not valid");
         }
-        // todo do some security checks
+
         return store.getCollection().update(fileId, {
             $set: {uploading: false}
         });

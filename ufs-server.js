@@ -1,13 +1,11 @@
-domain = Npm.require('domain');
-fs = Npm.require('fs');
-Future = Npm.require('fibers/future');
-http = Npm.require('http');
-https = Npm.require('https');
-mkdirp = Npm.require('mkdirp');
-querystring = Npm.require('querystring');
-stream = Npm.require('stream');
-URL = Npm.require('url');
-zlib = Npm.require('zlib');
+const domain = Npm.require('domain');
+const fs = Npm.require('fs');
+const http = Npm.require('http');
+const https = Npm.require('https');
+const mkdirp = Npm.require('mkdirp');
+const stream = Npm.require('stream');
+const URL = Npm.require('url');
+const zlib = Npm.require('zlib');
 
 
 Meteor.startup(function () {
@@ -157,7 +155,7 @@ WebApp.connectHandlers.use(function (req, res, next) {
 
             d.run(function () {
                 // Check if the file can be accessed
-                if (store.onRead.call(store, fileId, file, req, res)) {
+                if (store.onRead.call(store, fileId, file, req, res) !== false) {
                     // Open the file stream
                     let rs = store.getReadStream(fileId, file);
                     let ws = new stream.PassThrough();

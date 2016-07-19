@@ -16,6 +16,7 @@ UploadFS.Store = function (options) {
         onRead: null,
         onReadError: null,
         onWriteError: null,
+        permissions: null,
         transformRead: null,
         transformWrite: null
     }, options);
@@ -53,6 +54,9 @@ UploadFS.Store = function (options) {
     if (options.onWriteError && typeof options.onWriteError !== 'function') {
         throw new TypeError('onWriteError is not a function');
     }
+    if (options.permissions && !(options.permissions instanceof UploadFS.StorePermissions)) {
+        throw new TypeError('permissions is not an UploadFS.StorePermissions');
+    }
     if (options.transformRead && typeof options.transformRead !== 'function') {
         throw new TypeError('transformRead is not a function');
     }
@@ -66,6 +70,7 @@ UploadFS.Store = function (options) {
     self.onRead = options.onRead || self.onRead;
     self.onReadError = options.onReadError || self.onReadError;
     self.onWriteError = options.onWriteError || self.onWriteError;
+    self.permissions = options.permissions || new UploadFS.StorePermissions();
 
     // Private attributes
     let collection = options.collection;
@@ -100,6 +105,17 @@ UploadFS.Store = function (options) {
      */
     self.getName = function () {
         return name;
+    };
+
+    /**
+     * Defines the store permissions
+     * @param permissions
+     */
+    self.setPermissions = function (permissions) {
+        if (!(permissions instanceof UploadFS.StorePermissions)) {
+            throw new TypeError("permissions is not an instance of UploadFS.StorePermissions");
+        }
+        self.permissions = permissions;
     };
 
     if (Meteor.isServer) {
@@ -322,21 +338,33 @@ UploadFS.Store = function (options) {
         };
     }
 
-    // Code executed after removing file
-    collection.after.remove(function (userId, file) {
-        if (Meteor.isServer) {
+    if (Meteor.isServer) {
+        const fs = Npm.require('fs');
+
+        // Code executed after removing file
+        collection.after.remove(function (userId, file) {
             if (copyTo instanceof Array) {
                 for (let i = 0; i < copyTo.length; i += 1) {
                     // Remove copies in stores
                     copyTo[i].getCollection().remove({originalId: file._id});
                 }
             }
-        }
-    });
+        });
 
-    // Code executed before removing file
-    collection.before.remove(function (userId, file) {
-        if (Meteor.isServer) {
+        // Code executed before inserting file
+        collection.before.insert(function (userId, file) {
+            self.permissions.checkInsert(userId, file);
+        });
+
+        // Code executed before updating file
+        collection.before.update(function (userId, file) {
+            self.permissions.checkUpdate(userId, file);
+        });
+
+        // Code executed before removing file
+        collection.before.remove(function (userId, file) {
+            self.permissions.checkRemove(userId, file);
+
             // Delete the physical file in the store
             self.delete(file._id);
 
@@ -348,8 +376,8 @@ UploadFS.Store = function (options) {
                     err && console.error('ufs: cannot delete temp file at ' + tmpFile + ' (' + err.message + ')');
                 });
             });
-        }
-    });
+        });
+    }
 };
 
 /**

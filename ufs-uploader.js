@@ -40,8 +40,8 @@ UploadFS.Uploader = function (options) {
     if (typeof options.chunkSize !== 'number') {
         throw new TypeError('chunkSize is not a number');
     }
-    if (!(options.data instanceof ArrayBuffer) && !(options.data instanceof File)) {
-        throw new TypeError('data is not an ArrayBuffer or File');
+    if (!(options.data instanceof Blob) && !(options.data instanceof File)) {
+        throw new TypeError('data is not an Blob or File');
     }
     if (options.file === null || typeof options.file !== 'object') {
         throw new TypeError('file is not an object');
@@ -107,7 +107,7 @@ UploadFS.Uploader = function (options) {
     let fileId = null;
     let offset = 0;
     let loaded = 0;
-    let total = 0;
+    let total = data.size;
     let tries = 0;
     let postUrl = null;
     let token = null;
@@ -122,14 +122,6 @@ UploadFS.Uploader = function (options) {
 
     // Assign file to store
     file.store = store.getName();
-
-    // Get file total size
-    if (data instanceof ArrayBuffer) {
-        total = data.byteLength;
-    }
-    if (data instanceof File) {
-        total = data.size;
-    }
 
     function finish() {
         // Finish the upload by telling the store the upload is complete
@@ -271,41 +263,29 @@ UploadFS.Uploader = function (options) {
         if (typeof callback != 'function') {
             throw new Error('readChunk is missing callback');
         }
-        // Read ArrayBuffer
-        // if (data instanceof ArrayBuffer) {
-        //     // Calculate the chunk size
-        //     if (length && start + length > total) {
-        //         length = total - start;
-        //     }
-        //     callback.call(self, null, new Uint8Array(data, start, length));
-        // }
+        try {
+            let end;
 
-        // Read File/Blob
-        if (data instanceof File || data instanceof Blob) {
-            try {
-                let end;
-
-                // Calculate the chunk size
-                if (length && start + length > total) {
-                    end = total;
-                } else {
-                    end = start + length;
-                }
-                // Get chunk
-                let chunk = data.slice(start, end);
-                // Pass chunk to callback
-                callback.call(self, null, chunk);
-
-            } catch (err) {
-                console.error('read error', err);
-                // Retry to read chunk
-                Meteor.setTimeout(function () {
-                    if (tries < self.maxTries) {
-                        tries += 1;
-                        self.readChunk(start, length, callback);
-                    }
-                }, self.retryDelay);
+            // Calculate the chunk size
+            if (length && start + length > total) {
+                end = total;
+            } else {
+                end = start + length;
             }
+            // Get chunk
+            let chunk = data.slice(start, end);
+            // Pass chunk to callback
+            callback.call(self, null, chunk);
+
+        } catch (err) {
+            console.error('read error', err);
+            // Retry to read chunk
+            Meteor.setTimeout(function () {
+                if (tries < self.maxTries) {
+                    tries += 1;
+                    self.readChunk(start, length, callback);
+                }
+            }, self.retryDelay);
         }
     };
 
@@ -404,7 +384,7 @@ UploadFS.Uploader = function (options) {
             // that allows the user to send chunks to the store.
             Meteor.call('ufsCreate', _.extend({}, file), function (err, result) {
                 if (err) {
-                    self.onError(err);
+                    self.onError(err, file);
                 } else if (result) {
                     token = result.token;
                     postUrl = result.url;
@@ -439,7 +419,7 @@ UploadFS.Uploader = function (options) {
 
             Meteor.call('ufsStop', fileId, store.getName(), token, function (err, result) {
                 if (err) {
-                    self.onError(err);
+                    self.onError(err, file);
                 }
             });
         }

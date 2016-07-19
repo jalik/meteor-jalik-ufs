@@ -9,6 +9,91 @@ Also I'll be glad to receive donations, whatever you give it will be much apprec
 
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=SS78MUMW8AH4N)
 
+## Version 0.6.1
+
+This version brings a huge improvement of transfer speed for large files, the upload channel has been rewritten using standard POST HTTP method instead of Meteor methods. Also a lot of code has been simplified for future versions.
+
+### Breaking changes
+
+#### UploadFS.readAsArrayBuffer() is DEPRECATED
+
+The method `UploadFS.readAsArrayBuffer()` is not available anymore, as uploads are using POST binary data, we don't need `ArrayBuffer`.
+
+```js
+UploadFS.selectFiles(function(ev){
+    UploadFS.readAsArrayBuffer(ev, function (data, file) {
+        let photo = {
+            name: file.name,
+            size: file.size,
+            type: file.type
+        };
+        let worker = new UploadFS.Uploader({
+            store: photosStore,
+            data: data,
+            file: photo
+        });
+        worker.start();
+    });
+});
+```
+
+The new code is smaller and easier to read :
+
+```js
+UploadFS.selectFiles(function(file){
+    let photo = {
+        name: file.name,
+        size: file.size,
+        type: file.type
+    };
+    let worker = new UploadFS.Uploader({
+        store: photosStore,
+        data: file,
+        file: photo
+    });
+    worker.start();
+});
+```
+
+#### Permissions are defined differently
+
+Before `v0.6.1` you would do like this :
+
+```js
+Photos.allow({
+    insert: function (userId, doc) {
+        return userId;
+    },
+    update: function (userId, doc) {
+        return userId === doc.userId;
+    },
+    remove: function (userId, doc) {
+        return userId === doc.userId;
+    }
+});
+```
+
+Now you can set the permissions when you create the store :
+
+```js
+PhotosStore = new UploadFS.store.Local({
+    collection: Photos,
+    name: 'photos',
+    path: '/uploads/photos',
+    permissions: new UploadFS.Permissions({
+        insert: function (userId, doc) {
+            return userId;
+        },
+        update: function (userId, doc) {
+            return userId === doc.userId;
+        },
+        remove: function (userId, doc) {
+            return userId === doc.userId;
+        }
+    }
+});
+```
+
 ## Testing
 
 You can test the package by downloading and running [UFS-Example](https://github.com/jalik/ufs-example) which is simple demo of UploadFS.
@@ -210,8 +295,10 @@ Template.photos.helpers({
 If you don't want anyone to do anything, you must define permission rules.
 By default, there is no restriction (except the filter) on insert, remove and update actions.
 
+**The permission system has changed since `v0.6.1`, you must define permissions like this :**
+
 ```js
-Photos.allow({
+PhotosStore.setPermissions(new UploadFS.Permissions({
     insert: function (userId, doc) {
         return userId;
     },
@@ -220,6 +307,27 @@ Photos.allow({
     },
     remove: function (userId, doc) {
         return userId === doc.userId;
+    }
+});
+```
+
+or when you create the store :
+
+```js
+PhotosStore = new UploadFS.store.Local({
+    collection: Photos,
+    name: 'photos',
+    path: '/uploads/photos',
+    permissions: new UploadFS.Permissions({
+        insert: function (userId, doc) {
+            return userId;
+        },
+        update: function (userId, doc) {
+            return userId === doc.userId;
+        },
+        remove: function (userId, doc) {
+            return userId === doc.userId;
+        }
     }
 });
 ```
