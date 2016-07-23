@@ -150,19 +150,20 @@ UploadFS.config.storesPath = 'uploads';
 UploadFS.config.tmpDir = '/tmp/uploads';
 ```
 
-## Creating a Store
+## Create a Store
 
 **All stores must be available on the client and the server.**
 
 A store is the place where your files are saved, it could be your local hard drive or a distant cloud hosting solution.
-Let say you have a **photos** collection which is used to save the files info.
+Let say you have a `Photos` collection which is used to save the files info.
 
 ```js
 Photos = new Mongo.Collection('photos');
 ```
 
-What you need is to create the store that will will contains the data of the **Photos** collection.
-The **name** of the store must be unique because it will be used by the uploader to send the file on the store.
+What you need is to create the store that will will contains the data of the `Photos` collection.
+Note that the `name` of the store must be unique. In the following example we are using a local filesystem store.
+Each store has its own options, so refer to the store documentation to see available options.
 
 ```js
 PhotosStore = new UploadFS.store.Local({
@@ -172,10 +173,10 @@ PhotosStore = new UploadFS.store.Local({
 });
 ```
 
-## Filtering uploads
+## Filter uploads
 
-You can pass an `UploadFS.Filter` to the store to define restrictions on file uploads.
-Filter is tested before inserting a file in the collection and uses `Meteor.deny()`.
+You can set an `UploadFS.Filter` to the store to define restrictions on file uploads.
+Filter is tested before inserting a file in the collection.
 If the file does not match the filter, it won't be inserted and will not be uploaded.
 
 ```js
@@ -193,7 +194,7 @@ PhotosStore = new UploadFS.store.Local({
 });
 ```
 
-If you need a more advanced filter, you can pass a method using the `onCheck` option.
+If you need a more advanced filter, you can pass your own method using the `onCheck` option.
 
 ```js
 PhotosStore = new UploadFS.store.Local({
@@ -212,10 +213,11 @@ PhotosStore = new UploadFS.store.Local({
 });
 ```
 
-## Transforming files
+## Transform files
 
-If you need to modify the file before it is saved to the store, you have to use the `transformRead` or `transformWrite` parameter.
-A common use is to resize/compress images to get lighter versions of the uploaded files.
+If you need to modify the file before saving it to the store, you can to use the `transformWrite` option.
+If you want to modify the file before returning it (for display), then use the `transformRead` option.
+A common use is to resize/compress images to optimize the uploaded files.
 
 ```js
 PhotosStore = new UploadFS.store.Local({
@@ -223,39 +225,81 @@ PhotosStore = new UploadFS.store.Local({
     name: 'photos',
     path: '/uploads/photos',
     // Transform file when reading
-    transformRead: function (readStream, writeStream, fileId, file, request) {
-        readStream.pipe(writeStream); // this returns the raw data
+    transformRead: function (from, to, fileId, file, request) {
+        from.pipe(to); // this returns the raw data
     }
     // Transform file when writing
-    transformWrite: function (readStream, writeStream, fileId, file) {
-        var im = Npm.require('imagemagick-stream');
-        var resize = im().resize('800x600').quality(90);
-        readStream.pipe(resize).pipe(writeStream);
+    transformWrite: function (from, to, fileId, file) {
+        let gm = Npm.require('gm');
+        if (gm) {
+            gm(from)
+                .resize(400, 400)
+                .gravity('Center')
+                .extent(400, 400)
+                .quality(75)
+                .stream().pipe(to);
+        } else {
+            console.error("gm is not available", file);
+        }
     }
 });
 ```
 
-## Copying files (since v0.3.6)
+## Copy files (since v0.3.6)
 
 You can copy files to other stores on the fly, it could be for backup or just to have alternative versions of the same file (eg: thumbnails).
+To copy files that are saved in a store, use the `copyTo` option, you just need to pass an array of stores to copy to.
 
 ```js
-Thumbnails = new Mongo.Collection('thumbnails');
+Files = new Mongo.Collection('files');
+Thumbnails128 = new Mongo.Collection('thumbnails-128');
+Thumbnails64 = new Mongo.Collection('thumbnails-64');
 
-PhotosStore = new UploadFS.store.Local({
-    collection: Photos,
-    name: 'photos',
-    path: '/uploads/photos',
+Thumbnail128Store = new UploadFS.store.Local({
+    collection: Thumbnails128,
+    name: 'thumbnails-128',
+    path: '/uploads/thumbsnails/128x128',
+    transformWrite: function(readStream, writeStream, fileId, file) {
+        let gm = Npm.require('gm');
+        if (gm) {
+            gm(from)
+                .resize(128, 128)
+                .gravity('Center')
+                .extent(128, 128)
+                .quality(75)
+                .stream().pipe(to);
+        } else {
+            console.error("gm is not available", file);
+        }
+    }
+});
+
+Thumbnail64Store = new UploadFS.store.Local({
+    collection: Thumbnails64,
+    name: 'thumbnails-64',
+    path: '/uploads/thumbsnails/64x64',
+    transformWrite: function(readStream, writeStream, fileId, file) {
+        let gm = Npm.require('gm');
+        if (gm) {
+            gm(from)
+                .resize(64, 64)
+                .gravity('Center')
+                .extent(64, 64)
+                .quality(75)
+                .stream().pipe(to);
+        } else {
+            console.error("gm is not available", file);
+        }
+    }
+});
+
+FileStore = new UploadFS.store.Local({
+    collection: Files,
+    name: 'files',
+    path: '/uploads/files',
     copyTo: [
-        new UploadFS.store.Local({
-            collection: Thumbnails,
-            name: 'thumbnails',
-            transformWrite: function(readStream, writeStream, fileId, file) {
-                var im = Npm.require('imagemagick-stream');
-                var resize = im().resize('128x128').quality(80);
-                readStream.pipe(resize).pipe(writeStream);
-            }
-        })
+        Thumbnail128Store,
+        Thumbnail64Store
     ]
 });
 ```
@@ -263,34 +307,53 @@ PhotosStore = new UploadFS.store.Local({
 You can also manually copy a file to another store by using the `copy()` method.
 
 ```js
+Backups = new Mongo.Collection('backups');
+
+BackupStore = new UploadFS.store.Local({
+    collection: Backups,
+    name: 'backups',
+    path: '/backups'
+});
+
 PhotosStore.copy(fileId, BackupStore, function(err, copyId, copyFile) {
     !err && console.log(fileId + ' has been copied as ' + copyId);
 });
 ```
 
-Copies contains 2 fields that links to the original file, `originalId` and `originalStore`.
-So if you want to display a thumbnail instead of the original file you would do like this :
+All copies contain 2 fields that references the original file, `originalId` and `originalStore`.
+So if you want to display a thumbnail instead of the original file you could do like this :
 
 ```html
-<template name="photos">
-    {{#each photos}}
+<template name="files">
+    {{#each files}}
         <img src="{{thumb.url}}">
     {{/each}}
 </template>
 ```
 
 ```js
-Template.photos.helpers({
-    photos: function() {
-        return Photos.find();
+Template.files.helpers({
+    files: function() {
+        return Files.find();
     },
     thumb: function() {
-        return Thumbnails.findOne({originalId: this._id});
+        return Thumbnails128.findOne({originalId: this._id});
     }
 });
 ```
 
-## Setting permissions
+Or you can save the thumbnails URL into the original file, it's the recommended way to do it since it's embedded in the original file, you don't need to manage thumbnails subscriptions :
+
+```js
+Thumbnails128Store.onFinishUpload = function(file) {
+    Files.update(file.originalId, {$set: {thumb128Url: file.url}});
+};
+Thumbnails64Store.onFinishUpload = function(file) {
+    Files.update(file.originalId, {$set: {thumb64Url: file.url}});
+};
+```
+
+## Permissions
 
 If you don't want anyone to do anything, you must define permission rules.
 By default, there is no restriction (except the filter) on insert, remove and update actions.
@@ -332,7 +395,7 @@ PhotosStore = new UploadFS.store.Local({
 });
 ```
 
-## Securing file access
+## Secure file access
 
 When returning the file for a HTTP request, you can do some checks to decide whether or not the file should be sent to the client.
 This is done by defining the `onRead()` method on the store.
@@ -364,7 +427,7 @@ PhotosStore = new UploadFS.store.Local({
 });
 ```
 
-## Server events
+## Store events
 
 Some events are triggered to allow you to do something at the right moment on server side.
 
@@ -375,12 +438,12 @@ PhotosStore = new UploadFS.store.Local({
     path: '/uploads/photos',
     // Called when file has been uploaded
     onFinishUpload: function (file) {
-        console.log(file.name + 'has been uploaded');
+        console.log(file.name + ' has been uploaded');
     }
 });
 ```
 
-## Handling errors
+## Handle errors
 
 On server side, you can do something when there is a store IO error.
 
@@ -404,7 +467,7 @@ PhotosStore = new UploadFS.store.Local({
 });
 ```
 
-## Reading a file from a store
+## Read a file from a store
 
 If you need to get a file directly from a store, do like below :
 
@@ -423,7 +486,7 @@ readStream.on('data', Meteor.bindEnvironment(function (data) {
 }));
 ```
 
-## Writing a file to a store
+## Write a file to a store
 
 If you need to save a file directly to a store, do like below :
 
@@ -441,9 +504,9 @@ store.write(stream, fileId, function(err, file) {
 });
 ```
 
-## Uploading files
+## Upload files
 
-### Uploading from a file
+### Upload from a file
 
 When the store on the server is configured, you can upload files to it.
 
@@ -541,7 +604,7 @@ During uploading you can get some kind of useful information like the following 
  - `uploader.getRemainingTime()` returns the remaining time in milliseconds
  - `uploader.getSpeed()` returns the speed in bytes per second
 
-### Uploading from an URL
+### Upload from an URL
 
 If you want to upload a file directly from a URL, use the `importFromURL(url, fileAttr, storeName, callback)` method.
 This method is available both on the client and the server.
@@ -550,7 +613,7 @@ This method is available both on the client and the server.
 var url = 'https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png';
 var attr = { name: 'Google Logo', description: 'Logo from www.google.com' };
 
-UploadFS.importFromURL(url, attr, PhotosStore, function (err, file) {
+PhotosStore.importFromURL(url, attr, function (err, file) {
     if (err) {
         displayError(err);
     } else {
@@ -560,7 +623,7 @@ UploadFS.importFromURL(url, attr, PhotosStore, function (err, file) {
 
 ```
 
-## Displaying images
+## Display images
 
 After that, if everything went good, you have you file saved to the store and in database.
 You can get the file as usual and display it using the url attribute of the document.
@@ -600,19 +663,19 @@ Template.photos.helpers({
 Some helpers are available by default to help you work with files inside templates.
 
 ```html
-{{#if UFS.isApplication}}
+{{#if isApplication}}
     <a href="{{url}}">Download</a>
 {{/if}}
-{{#if UFS.isAudio}}
+{{#if isAudio}}
     <audio src="{{url}}" controls></audio>
 {{/if}}
-{{#if UFS.isImage}}
+{{#if isImage}}
     <img src="{{url}}">
 {{/if}}
-{{#if UFS.isText}}
+{{#if isText}}
     <iframe src={{url}}></iframe>
 {{/if}}
-{{#if UFS.isVideo}}
+{{#if isVideo}}
     <video src="{{url}}" controls></video>
 {{/if}}
 ```
