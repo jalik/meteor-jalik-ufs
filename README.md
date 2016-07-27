@@ -80,7 +80,7 @@ PhotosStore = new UploadFS.store.Local({
     collection: Photos,
     name: 'photos',
     path: '/uploads/photos',
-    permissions: new UploadFS.Permissions({
+    permissions: new UploadFS.StorePermissions({
         insert: function (userId, doc) {
             return userId;
         },
@@ -361,7 +361,7 @@ By default, there is no restriction (except the filter) on insert, remove and up
 **The permission system has changed since `v0.6.1`, you must define permissions like this :**
 
 ```js
-PhotosStore.setPermissions(new UploadFS.Permissions({
+PhotosStore.setPermissions(new UploadFS.StorePermissions({
     insert: function (userId, doc) {
         return userId;
     },
@@ -381,7 +381,7 @@ PhotosStore = new UploadFS.store.Local({
     collection: Photos,
     name: 'photos',
     path: '/uploads/photos',
-    permissions: new UploadFS.Permissions({
+    permissions: new UploadFS.StorePermissions({
         insert: function (userId, doc) {
             return userId;
         },
