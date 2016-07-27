@@ -88,7 +88,7 @@ WebApp.connectHandlers.use(function (req, res, next) {
             fields.progress = Math.min(progress, 1);
         }
 
-        req.on('data', (chunk)=> {
+        req.on('data', (chunk) => {
             ws.write(chunk);
         });
         req.on('error', (err) => {
