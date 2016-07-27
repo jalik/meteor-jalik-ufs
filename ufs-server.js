@@ -88,26 +88,26 @@ WebApp.connectHandlers.use(function (req, res, next) {
             fields.progress = Math.min(progress, 1);
         }
 
-        req.on('readable', Meteor.bindEnvironment(function () {
-            ws.write(req.read());
-        }));
-        req.on('error', Meteor.bindEnvironment(function (err) {
+        req.on('data', (chunk)=> {
+            ws.write(chunk);
+        });
+        req.on('error', (err) => {
             res.writeHead(500);
             res.end();
-        }));
+        });
         req.on('end', Meteor.bindEnvironment(function () {
             // Update completed state
             store.getCollection().update(fileId, {$set: fields});
             ws.end();
         }));
-        ws.on('error', Meteor.bindEnvironment(function (err) {
+        ws.on('error', (err) => {
             console.error('ufs: cannot write chunk of file "' + fileId + '" (' + err.message + ')');
-            fs.unlink(tmpFile, Meteor.bindEnvironment(function (err) {
+            fs.unlink(tmpFile, (err) => {
                 err && console.error('ufs: cannot delete temp file ' + tmpFile + ' (' + err.message + ')');
-            }));
+            });
             res.writeHead(500);
             res.end();
-        }));
+        });
         ws.on('finish', function () {
             res.writeHead(204, {"Content-Type": 'text/plain'});
             res.end();
