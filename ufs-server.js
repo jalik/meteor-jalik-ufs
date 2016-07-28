@@ -8,14 +8,14 @@ const URL = Npm.require('url');
 const zlib = Npm.require('zlib');
 
 
-Meteor.startup(function () {
+Meteor.startup(() => {
     let path = UploadFS.config.tmpDir;
     let mode = '0744';
 
-    fs.stat(path, function (err) {
+    fs.stat(path, (err) => {
         if (err) {
             // Create the temp directory
-            mkdirp(path, {mode: mode}, function (err) {
+            mkdirp(path, {mode: mode}, (err) => {
                 if (err) {
                     console.error('ufs: cannot create temp directory at ' + path + ' (' + err.message + ')');
                 } else {
@@ -24,7 +24,7 @@ Meteor.startup(function () {
             });
         } else {
             // Set directory permissions
-            fs.chmod(path, mode, function (err) {
+            fs.chmod(path, mode, (err) => {
                 err && console.error('ufs: cannot set temp directory permissions ' + mode + ' (' + err.message + ')');
             });
         }
@@ -35,12 +35,12 @@ Meteor.startup(function () {
 // and possibly avoid server crashes.
 let d = domain.create();
 
-d.on('error', function (err) {
+d.on('error', (err) => {
     console.error('ufs: ' + err.message);
 });
 
 // Listen HTTP requests to serve files
-WebApp.connectHandlers.use(function (req, res, next) {
+WebApp.connectHandlers.use((req, res, next) => {
     // Quick check to see if request should be catch
     if (req.url.indexOf(UploadFS.config.storesPath) === -1) {
         next();
@@ -95,7 +95,7 @@ WebApp.connectHandlers.use(function (req, res, next) {
             res.writeHead(500);
             res.end();
         });
-        req.on('end', Meteor.bindEnvironment(function () {
+        req.on('end', Meteor.bindEnvironment(() => {
             // Update completed state
             store.getCollection().update(fileId, {$set: fields});
             ws.end();
@@ -108,7 +108,7 @@ WebApp.connectHandlers.use(function (req, res, next) {
             res.writeHead(500);
             res.end();
         });
-        ws.on('finish', function () {
+        ws.on('finish', () => {
             res.writeHead(204, {"Content-Type": 'text/plain'});
             res.end();
         });
@@ -153,22 +153,22 @@ WebApp.connectHandlers.use(function (req, res, next) {
                 Meteor._sleepForMs(UploadFS.config.simulateReadDelay);
             }
 
-            d.run(function () {
+            d.run(() => {
                 // Check if the file can be accessed
                 if (store.onRead.call(store, fileId, file, req, res) !== false) {
                     // Open the file stream
                     let rs = store.getReadStream(fileId, file);
                     let ws = new stream.PassThrough();
 
-                    rs.on('error', function (err) {
+                    rs.on('error', Meteor.bindEnvironment((err) => {
                         store.onReadError.call(store, err, fileId, file);
                         res.end();
-                    });
-                    ws.on('error', function (err) {
+                    }));
+                    ws.on('error', Meteor.bindEnvironment((err) => {
                         store.onReadError.call(store, err, fileId, file);
                         res.end();
-                    });
-                    ws.on('close', function () {
+                    }));
+                    ws.on('close', () => {
                         // Close output stream at the end
                         ws.emit('end');
                     });

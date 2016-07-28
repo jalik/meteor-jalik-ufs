@@ -43,7 +43,7 @@ UploadFS.Filter = function (options) {
      * Checks the file
      * @param file
      */
-    self.check = function (file) {
+    self.check = (file) => {
         // Check size
         if (file.size <= 0 || file.size < self.getMinSize()) {
             throw new Meteor.Error('file-too-small', 'File is too small (min =' + self.getMinSize() + ')');
@@ -69,7 +69,7 @@ UploadFS.Filter = function (options) {
      * Returns the allowed content types
      * @return {Array}
      */
-    self.getContentTypes = function () {
+    self.getContentTypes = () => {
         return contentTypes;
     };
 
@@ -77,7 +77,7 @@ UploadFS.Filter = function (options) {
      * Returns the allowed extensions
      * @return {Array}
      */
-    self.getExtensions = function () {
+    self.getExtensions = () => {
         return extensions;
     };
 
@@ -85,7 +85,7 @@ UploadFS.Filter = function (options) {
      * Returns the maximum file size
      * @return {Number}
      */
-    self.getMaxSize = function () {
+    self.getMaxSize = () => {
         return maxSize;
     };
 
@@ -93,7 +93,7 @@ UploadFS.Filter = function (options) {
      * Returns the minimum file size
      * @return {Number}
      */
-    self.getMinSize = function () {
+    self.getMinSize = () => {
         return minSize;
     };
 
@@ -102,7 +102,7 @@ UploadFS.Filter = function (options) {
      * @param file
      * @return {boolean}
      */
-    self.isValid = function (file) {
+    self.isValid = (file) => {
         let result = true;
         try {
             self.check(file);
@@ -118,7 +118,7 @@ function checkContentType(type, list) {
         return true;
     } else {
         let wildCardGlob = '/*';
-        let wildcards = _.filter(list, function (item) {
+        let wildcards = _.filter(list, (item) => {
             return item.indexOf(wildCardGlob) > 0;
         });
 

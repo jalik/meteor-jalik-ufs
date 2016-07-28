@@ -14,7 +14,7 @@ UploadFS = {
      * @param fileId
      * @return {string}
      */
-    getTempFilePath: function (fileId) {
+    getTempFilePath: (fileId) => {
         return UploadFS.config.tmpDir + '/' + fileId;
     },
     /**
@@ -22,14 +22,14 @@ UploadFS = {
      * @param name
      * @return {UploadFS.Store}
      */
-    getStore: function (name) {
+    getStore: (name) => {
         return stores[name];
     },
     /**
      * Returns all stores
      * @return {object}
      */
-    getStores: function () {
+    getStores: () => {
         return stores;
     },
     /**
@@ -39,7 +39,7 @@ UploadFS = {
      * @param store
      * @param callback
      */
-    importFromURL: function (url, file, store, callback) {
+    importFromURL: (url, file, store, callback) => {
         store.importFromURL(url, file, callback);
     }
 };
@@ -52,7 +52,7 @@ if (Meteor.isClient) {
      * @param event
      * @param callback
      */
-    UploadFS.readAsArrayBuffer = function (event, callback) {
+    UploadFS.readAsArrayBuffer = (event, callback) => {
         console.error('UploadFS.readAsArrayBuffer is deprecated, see https://github.com/jalik/jalik-ufs#uploading-from-a-file');
     };
 
@@ -60,11 +60,11 @@ if (Meteor.isClient) {
      * Opens a dialog to select a single file
      * @param callback
      */
-    UploadFS.selectFile = function (callback) {
+    UploadFS.selectFile = (callback) => {
         let img = document.createElement('input');
         img.type = 'file';
         img.multiple = false;
-        img.onchange = function (ev) {
+        img.onchange = (ev) => {
             let files = ev.target.files;
             callback.call(UploadFS, files[0]);
         };
@@ -75,11 +75,11 @@ if (Meteor.isClient) {
      * Opens a dialog to select multiple files
      * @param callback
      */
-    UploadFS.selectFiles = function (callback) {
+    UploadFS.selectFiles = (callback) => {
         let img = document.createElement('input');
         img.type = 'file';
         img.multiple = true;
-        img.onchange = function (ev) {
+        img.onchange = (ev) => {
             let files = ev.target.files;
 
             for (let i = 0; i < files.length; i += 1) {
