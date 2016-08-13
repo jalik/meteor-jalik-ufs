@@ -70,6 +70,8 @@ WebApp.connectHandlers.use((req, res, next) => {
             res.end();
             return;
         }
+        // If a store is found, go ahead and allow the origin
+        res.setHeader("Access-Control-Allow-Origin", req.headers.origin);
 
         // Get file
         let fileId = match[2];
