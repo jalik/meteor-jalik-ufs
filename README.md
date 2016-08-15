@@ -98,6 +98,13 @@ PhotosStore = new UploadFS.store.Local({
 
 You can test the package by downloading and running [UFS-Example](https://github.com/jalik/ufs-example) which is simple demo of UploadFS.
 
+## Mobile Testing
+In order to test on mobile builds, `ROOT_URL` and `--mobile-server` must be set to your computer's local ip address and port:
+
+```bash
+export ROOT_URL=http://192.168.1.7:3000 && meteor run android-device --mobile-server=http://192.168.1.7:3000
+```
+
 ## Installation
 
 To install the package, execute this command in the root of your project :
