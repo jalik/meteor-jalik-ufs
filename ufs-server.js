@@ -39,13 +39,6 @@ d.on('error', (err) => {
     console.error('ufs: ' + err.message);
 });
 
-// Allow CORS
-WebApp.connectHandlers.use((req, res, next) => {
-    res.setHeader("Access-Control-Allow-Methods", "POST");
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-});
-
 // Listen HTTP requests to serve files
 WebApp.connectHandlers.use((req, res, next) => {
     // Quick check to see if request should be catch
@@ -58,9 +51,11 @@ WebApp.connectHandlers.use((req, res, next) => {
     let parsedUrl = URL.parse(req.url);
     let path = parsedUrl.pathname.substr(UploadFS.config.storesPath.length + 1);
 
-    let setCors = ()=> {
-        res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    let allowCORS = ()=> {
+        // res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
+        res.setHeader("Access-Control-Allow-Methods", "POST");
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type");
     };
 
     if (req.method === "OPTIONS") {
@@ -83,7 +78,7 @@ WebApp.connectHandlers.use((req, res, next) => {
         }
 
         // If a store is found, go ahead and allow the origin
-        setCors();
+        allowCORS();
 
         next();
     }
@@ -108,7 +103,7 @@ WebApp.connectHandlers.use((req, res, next) => {
         }
 
         // If a store is found, go ahead and allow the origin
-        setCors();
+        allowCORS();
 
         // Get file
         let fileId = match[2];

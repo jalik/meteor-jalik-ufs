@@ -393,6 +393,7 @@ UploadFS.Store.prototype.getFileURL = function (fileId) {
 
 /**
  * Returns the store URL
+ * @param path
  */
 UploadFS.Store.prototype.getURL = function (path) {
     path = [UploadFS.config.storesPath, this.getName(), path].join('/').replace(/\/$/, '');
