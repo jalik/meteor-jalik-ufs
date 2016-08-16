@@ -388,15 +388,15 @@ UploadFS.Store.prototype.getFileURL = function (fileId) {
     let file = this.getCollection().findOne(fileId, {
         fields: {name: 1}
     });
-    return file && this.getURL() + '/' + fileId + '/' + encodeURIComponent(file.name);
+    return file && this.getURL(fileId + '/' + encodeURIComponent(file.name));
 };
 
 /**
  * Returns the store URL
  */
-UploadFS.Store.prototype.getURL = function () {
-    // call a server method to get server ip
-    return Meteor.call('ufsGetUrl', UploadFS.config.storesPath, this.getName(), UploadFS.config.https);
+UploadFS.Store.prototype.getURL = function (path) {
+    path = [UploadFS.config.storesPath, this.getName(), path].join('/').replace(/\/$/, '');
+    return Meteor.absoluteUrl(path, {secure: UploadFS.config.https});
 };
 
 /**

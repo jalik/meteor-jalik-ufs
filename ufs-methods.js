@@ -2,7 +2,6 @@ const fs = Npm.require('fs');
 const http = Npm.require('http');
 const https = Npm.require('https');
 const Future = Npm.require('fibers/future');
-const os = Npm.require('os');
 
 Meteor.methods({
 
@@ -60,7 +59,7 @@ Meteor.methods({
     /**
      * Creates the file and returns the file upload token
      * @param file
-     * @returns {{fileId: string, url: string}}
+     * @returns {{fileId: file, token: *, url}}
      */
     ufsCreate: function (file) {
         check(file, Object);
@@ -94,7 +93,7 @@ Meteor.methods({
         // Create the file
         let fileId = store.create(file);
         let token = store.createToken(fileId);
-        let uploadUrl = store.getURL() + '/' + fileId + '?token=' + token;
+        let uploadUrl = store.getURL(fileId + '?token=' + token);
 
         return {
             fileId: fileId,
@@ -226,22 +225,5 @@ Meteor.methods({
         return store.getCollection().update(fileId, {
             $set: {uploading: false}
         });
-    },
-    ufsGetUrl: function (storesPath, name, https) {
-        // get server ip
-        let path = `${storesPath}/${name}`;
-        let url = Meteor.absoluteUrl(path, {
-            secure: https
-        });
-        let urlreg = url.match(/^(http|http):\/\/[^:\/]+(?::(\d+))?/);
-        let protocol = urlreg[1];
-        let port = urlreg[2];
-        let ip = os.networkInterfaces().en0.filter((iface)=> {
-            if (iface.address.split('.').length === 4) {
-                return true;
-            }
-        })[0].address;
-        return `${protocol}://${ip}:${port}/${path}`;
-
     }
 });
