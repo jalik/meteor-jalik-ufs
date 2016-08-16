@@ -51,7 +51,36 @@ WebApp.connectHandlers.use((req, res, next) => {
     let parsedUrl = URL.parse(req.url);
     let path = parsedUrl.pathname.substr(UploadFS.config.storesPath.length + 1);
 
-    if (req.method === 'POST') {
+    let setCors = ()=> {
+        res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    }
+
+    if (req.method === "OPTIONS") {
+        let regExp = new RegExp('^\/([^\/\?]+)\/([^\/\?]+)$');
+        let match = regExp.exec(path);
+
+        // Request is not valid
+        if (match === null) {
+            res.writeHead(400);
+            res.end();
+            return;
+        }
+
+        // Get store
+        let store = UploadFS.getStore(match[1]);
+        if (!store) {
+            res.writeHead(404);
+            res.end();
+            return;
+        }
+
+        // If a store is found, go ahead and allow the origin
+        setCors();
+
+        next();
+    }
+    else if (req.method === 'POST') {
         // Get store
         let regExp = new RegExp('^\/([^\/\?]+)\/([^\/\?]+)$');
         let match = regExp.exec(path);
@@ -71,7 +100,7 @@ WebApp.connectHandlers.use((req, res, next) => {
             return;
         }
         // If a store is found, go ahead and allow the origin
-        res.setHeader("Access-Control-Allow-Origin", req.headers.origin);
+        setCors();
 
         // Get file
         let fileId = match[2];
