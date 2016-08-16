@@ -61,14 +61,14 @@ if (Meteor.isClient) {
      * @param callback
      */
     UploadFS.selectFile = (callback) => {
-        let img = document.createElement('input');
-        img.type = 'file';
-        img.multiple = false;
-        img.onchange = (ev) => {
+        this.img = document.createElement('input');
+        this.img.type = 'file';
+        this.img.multiple = false;
+        this.img.onchange = (ev) => {
             let files = ev.target.files;
             callback.call(UploadFS, files[0]);
         };
-        img.click();
+        this.img.click();
     };
 
     /**
@@ -76,16 +76,16 @@ if (Meteor.isClient) {
      * @param callback
      */
     UploadFS.selectFiles = (callback) => {
-        let img = document.createElement('input');
-        img.type = 'file';
-        img.multiple = true;
-        img.onchange = (ev) => {
+        this.img = document.createElement('input');
+        this.img.type = 'file';
+        this.img.multiple = true;
+        this.img.onchange = (ev) => {
             let files = ev.target.files;
 
             for (let i = 0; i < files.length; i += 1) {
                 callback.call(UploadFS, files[i]);
             }
         };
-        img.click();
+        this.img.click();
     };
 }

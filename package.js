@@ -32,6 +32,5 @@ Package.onUse(function (api) {
 });
 
 Npm.depends({
-    mkdirp: '0.3.5',
-    os: '0.1.1'
+    mkdirp: '0.3.5'
 });
