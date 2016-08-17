@@ -1,3 +1,7 @@
+import {_} from 'meteor/underscore';
+import {Meteor} from 'meteor/meteor';
+import {WebApp} from 'meteor/webapp';
+
 const domain = Npm.require('domain');
 const fs = Npm.require('fs');
 const http = Npm.require('http');
@@ -10,7 +14,7 @@ const zlib = Npm.require('zlib');
 
 Meteor.startup(() => {
     let path = UploadFS.config.tmpDir;
-    let mode = '0744';
+    let mode = UploadFS.config.tmpDirPermissions;
 
     fs.stat(path, (err) => {
         if (err) {

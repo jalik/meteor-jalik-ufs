@@ -1,3 +1,7 @@
+import {_} from 'meteor/underscore';
+import {check} from 'meteor/check';
+import {Meteor} from 'meteor/meteor';
+
 const fs = Npm.require('fs');
 const http = Npm.require('http');
 const https = Npm.require('https');

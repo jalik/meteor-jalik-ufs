@@ -1,3 +1,7 @@
+import {_} from 'meteor/underscore';
+import {Meteor} from 'meteor/meteor';
+import {Mongo} from 'meteor/mongo';
+
 /**
  * File store
  * @param options

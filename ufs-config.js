@@ -1,3 +1,6 @@
+import {_} from 'meteor/underscore';
+import {Meteor} from 'meteor/meteor';
+
 /**
  * UploadFS configuration
  * @param options
@@ -11,7 +14,8 @@ UploadFS.Config = function (options) {
         simulateUploadSpeed: 0,
         simulateWriteDelay: 0,
         storesPath: 'ufs',
-        tmpDir: '/tmp/ufs'
+        tmpDir: '/tmp/ufs',
+        tmpDirPermissions: '0700'
     }, options);
 
     // Check options
@@ -33,6 +37,9 @@ UploadFS.Config = function (options) {
     if (typeof options.tmpDir !== 'string') {
         throw new Meteor.Error('tmpDir is not a string');
     }
+    if (typeof options.tmpDirPermissions !== 'string') {
+        throw new Meteor.Error('tmpDirPermissions is not a string');
+    }
 
     // Public attributes
     this.https = options.https;
@@ -41,6 +48,7 @@ UploadFS.Config = function (options) {
     this.simulateWriteDelay = parseInt(options.simulateWriteDelay);
     this.storesPath = options.storesPath;
     this.tmpDir = options.tmpDir;
+    this.tmpDirPermissions = options.tmpDirPermissions;
 };
 
 /**
@@ -72,6 +80,12 @@ UploadFS.Config.prototype.storesPath = null;
  * @type {string}
  */
 UploadFS.Config.prototype.tmpDir = null;
+
+/**
+ * Permissions of the local temporary directory
+ * @type {string}
+ */
+UploadFS.Config.prototype.tmpDirPermissions = '0700';
 
 /**
  * Global configuration

@@ -1,3 +1,5 @@
+import {_} from 'meteor/underscore';
+
 /**
  * Store permissions
  * @param options

@@ -1,3 +1,6 @@
+import {_} from 'meteor/underscore';
+import {Meteor} from 'meteor/meteor';
+
 /**
  * File uploader
  * @param options

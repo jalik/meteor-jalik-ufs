@@ -9,9 +9,20 @@ Also I'll be glad to receive donations, whatever you give it will be much apprec
 
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=SS78MUMW8AH4N)
 
+## Version 0.6.4
+
+- Allows to set temp directory permissions
+
+## Version 0.6.3
+
+- Fixes iOS and Android issues
+- Adds CORS support
+
 ## Version 0.6.1
 
-This version brings a huge improvement of transfer speed for large files, the upload channel has been rewritten using standard POST HTTP method instead of Meteor methods. Also a lot of code has been simplified for future versions.
+- Brings a huge improvement to large file transfer
+- Uses POST HTTP method instead of Meteor methods to upload files
+- Simplifies code for future versions
 
 ### Breaking changes
 
@@ -99,7 +110,8 @@ PhotosStore = new UploadFS.store.Local({
 You can test the package by downloading and running [UFS-Example](https://github.com/jalik/ufs-example) which is simple demo of UploadFS.
 
 ## Mobile Testing
-In order to test on mobile builds, `ROOT_URL` and `--mobile-server` must be set to your computer's local ip address and port:
+
+In order to test on mobile builds, `ROOT_URL` and `--mobile-server` must be set to your computer's local IP address and port:
 
 ```bash
 export ROOT_URL=http://192.168.1.7:3000 && meteor run android-device --mobile-server=http://192.168.1.7:3000
@@ -155,6 +167,9 @@ UploadFS.config.storesPath = 'uploads';
 // Set the temporary directory where uploading files will be saved
 // before sent to the store.
 UploadFS.config.tmpDir = '/tmp/uploads';
+
+// Set the temporary directory permissions.
+UploadFS.config.tmpDirPermissions = '0700';
 ```
 
 ## Create a Store

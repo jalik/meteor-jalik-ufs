@@ -1,6 +1,6 @@
 Package.describe({
     name: 'jalik:ufs',
-    version: '0.6.3',
+    version: '0.6.4',
     author: 'karl.stein.pro@gmail.com',
     summary: 'Base package for UploadFS',
     homepage: 'https://github.com/jalik/jalik-ufs',
@@ -19,6 +19,7 @@ Package.onUse(function (api) {
     api.use('webapp@1.2.8', 'server');
 
     api.addFiles('ufs.js');
+    api.addFiles('ufs-utilities.js');
     api.addFiles('ufs-config.js');
     api.addFiles('ufs-filter.js');
     api.addFiles('ufs-store-permissions.js');

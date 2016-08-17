@@ -1,3 +1,5 @@
+import {Template} from 'meteor/templating';
+
 let isMIME = function (type, mime) {
     return typeof type === 'string'
         && typeof mime === 'string'

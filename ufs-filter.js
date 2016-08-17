@@ -1,3 +1,5 @@
+import {_} from 'meteor/underscore';
+
 /**
  * File filter
  * @param options
