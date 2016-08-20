@@ -156,105 +156,110 @@ WebApp.connectHandlers.use((req, res, next) => {
         let regExp = new RegExp('^\/([^\/\?]+)\/([^\/\?]+)(?:\/([^\/\?]+))?$');
         let match = regExp.exec(path);
 
-        if (match !== null) {
-            // Get store
-            let storeName = match[1];
-            let store = UploadFS.getStore(storeName);
+        // Avoid 504 Gateway timeout error
+        // if file is not handled by UploadFS.
+        if (match === null) {
+            next();
+            return;
+        }
 
-            if (!store) {
-                res.writeHead(404);
-                res.end();
-                return;
-            }
+        // Get store
+        let storeName = match[1];
+        let store = UploadFS.getStore(storeName);
 
-            if (store.onRead !== null && store.onRead !== undefined && typeof store.onRead !== 'function') {
-                console.error('ufs: store "' + storeName + '" onRead is not a function');
-                res.writeHead(500);
-                res.end();
-                return;
-            }
+        if (!store) {
+            res.writeHead(404);
+            res.end();
+            return;
+        }
 
-            // Remove file extension from file Id
-            let index = match[2].indexOf('.');
-            let fileId = index !== -1 ? match[2].substr(0, index) : match[2];
+        if (store.onRead !== null && store.onRead !== undefined && typeof store.onRead !== 'function') {
+            console.error('ufs: store "' + storeName + '" onRead is not a function');
+            res.writeHead(500);
+            res.end();
+            return;
+        }
 
-            // Get file from database
-            let file = store.getCollection().findOne(fileId);
-            if (!file) {
-                res.writeHead(404);
-                res.end();
-                return;
-            }
+        // Remove file extension from file Id
+        let index = match[2].indexOf('.');
+        let fileId = index !== -1 ? match[2].substr(0, index) : match[2];
 
-            // Simulate read speed
-            if (UploadFS.config.simulateReadDelay) {
-                Meteor._sleepForMs(UploadFS.config.simulateReadDelay);
-            }
+        // Get file from database
+        let file = store.getCollection().findOne(fileId);
+        if (!file) {
+            res.writeHead(404);
+            res.end();
+            return;
+        }
 
-            d.run(() => {
-                // Check if the file can be accessed
-                if (store.onRead.call(store, fileId, file, req, res) !== false) {
-                    // Open the file stream
-                    let rs = store.getReadStream(fileId, file);
-                    let ws = new stream.PassThrough();
+        // Simulate read speed
+        if (UploadFS.config.simulateReadDelay) {
+            Meteor._sleepForMs(UploadFS.config.simulateReadDelay);
+        }
 
-                    rs.on('error', Meteor.bindEnvironment((err) => {
-                        store.onReadError.call(store, err, fileId, file);
-                        res.end();
-                    }));
-                    ws.on('error', Meteor.bindEnvironment((err) => {
-                        store.onReadError.call(store, err, fileId, file);
-                        res.end();
-                    }));
-                    ws.on('close', () => {
-                        // Close output stream at the end
-                        ws.emit('end');
-                    });
+        d.run(() => {
+            // Check if the file can be accessed
+            if (store.onRead.call(store, fileId, file, req, res) !== false) {
+                // Open the file stream
+                let rs = store.getReadStream(fileId, file);
+                let ws = new stream.PassThrough();
 
-                    let headers = {
-                        'Content-Type': file.type,
-                        'Content-Length': file.size
-                    };
+                rs.on('error', Meteor.bindEnvironment((err) => {
+                    store.onReadError.call(store, err, fileId, file);
+                    res.end();
+                }));
+                ws.on('error', Meteor.bindEnvironment((err) => {
+                    store.onReadError.call(store, err, fileId, file);
+                    res.end();
+                }));
+                ws.on('close', () => {
+                    // Close output stream at the end
+                    ws.emit('end');
+                });
 
-                    // Transform stream
-                    store.transformRead(rs, ws, fileId, file, req, headers);
+                let headers = {
+                    'Content-Type': file.type,
+                    'Content-Length': file.size
+                };
 
-                    // Parse headers
-                    if (typeof req.headers === 'object') {
-                        // Compress data using accept-encoding header
-                        if (typeof req.headers['accept-encoding'] === 'string') {
-                            let accept = req.headers['accept-encoding'];
+                // Transform stream
+                store.transformRead(rs, ws, fileId, file, req, headers);
 
-                            // Compress with gzip
-                            if (accept.match(/\bgzip\b/)) {
-                                headers['Content-Encoding'] = 'gzip';
-                                delete headers['Content-Length'];
-                                res.writeHead(200, headers);
-                                ws.pipe(zlib.createGzip()).pipe(res);
-                                return;
-                            }
-                            // Compress with deflate
-                            else if (accept.match(/\bdeflate\b/)) {
-                                headers['Content-Encoding'] = 'deflate';
-                                delete headers['Content-Length'];
-                                res.writeHead(200, headers);
-                                ws.pipe(zlib.createDeflate()).pipe(res);
-                                return;
-                            }
+                // Parse headers
+                if (typeof req.headers === 'object') {
+                    // Compress data using accept-encoding header
+                    if (typeof req.headers['accept-encoding'] === 'string') {
+                        let accept = req.headers['accept-encoding'];
+
+                        // Compress with gzip
+                        if (accept.match(/\bgzip\b/)) {
+                            headers['Content-Encoding'] = 'gzip';
+                            delete headers['Content-Length'];
+                            res.writeHead(200, headers);
+                            ws.pipe(zlib.createGzip()).pipe(res);
+                            return;
+                        }
+                        // Compress with deflate
+                        else if (accept.match(/\bdeflate\b/)) {
+                            headers['Content-Encoding'] = 'deflate';
+                            delete headers['Content-Length'];
+                            res.writeHead(200, headers);
+                            ws.pipe(zlib.createDeflate()).pipe(res);
+                            return;
                         }
                     }
-
-                    // Send raw data
-                    if (!headers['Content-Encoding']) {
-                        res.writeHead(200, headers);
-                        ws.pipe(res);
-                    }
-
-                } else {
-                    res.end();
                 }
-            });
-        }
+
+                // Send raw data
+                if (!headers['Content-Encoding']) {
+                    res.writeHead(200, headers);
+                    ws.pipe(res);
+                }
+
+            } else {
+                res.end();
+            }
+        });
     } else {
         next();
     }

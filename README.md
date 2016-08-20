@@ -9,6 +9,10 @@ Also I'll be glad to receive donations, whatever you give it will be much apprec
 
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=SS78MUMW8AH4N)
 
+## Version 0.6.5
+
+- Fixes 504 Gateway timeout error when file is not served by UploadFS
+
 ## Version 0.6.4
 
 - Allows to set temp directory permissions
