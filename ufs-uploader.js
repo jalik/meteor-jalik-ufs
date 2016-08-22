@@ -134,7 +134,6 @@ UploadFS.Uploader = function (options) {
                 self.abort();
 
             } else if (uploadedFile) {
-                elapsedTime = Date.now() - startTime;
                 uploading = false;
                 complete = true;
                 file = uploadedFile;
@@ -171,7 +170,8 @@ UploadFS.Uploader = function (options) {
      * @returns {number}
      */
     self.getAverageSpeed = function () {
-        return self.getLoaded() / self.getElapsedTime();
+        let seconds = self.getElapsedTime() / 1000;
+        return self.getLoaded() / seconds;
     };
 
     /**
@@ -225,8 +225,8 @@ UploadFS.Uploader = function (options) {
      */
     self.getSpeed = function () {
         if (timeA && timeB && self.isUploading()) {
-            let duration = timeB - timeA;
-            return self.chunkSize / (duration / 1000);
+            let seconds = (timeB - timeA) / 1000;
+            return self.chunkSize / seconds;
         }
         return 0;
     };
@@ -323,6 +323,11 @@ UploadFS.Uploader = function (options) {
                     chunkSize = self.maxChunkSize;
                 }
 
+                // Reduce chunk size to fit total
+                if (offset + chunkSize > total) {
+                    chunkSize = total - offset;
+                }
+
                 // Prepare the chunk
                 self.readChunk(offset, chunkSize, function (err, chunk) {
                     if (err) {
@@ -340,7 +345,14 @@ UploadFS.Uploader = function (options) {
 
                                 // Send next chunk
                                 self.onProgress(file, self.getProgress());
-                                Meteor.setTimeout(self.sendChunk, self.transferDelay);
+
+                                // Finish upload
+                                if (loaded >= total) {
+                                    elapsedTime = Date.now() - startTime;
+                                    finish();
+                                } else {
+                                    Meteor.setTimeout(self.sendChunk, self.transferDelay);
+                                }
 
                             } else if (!_.contains([402, 403, 404, 500], xhr.status)) {
                                 // Retry until max tries is reach
@@ -371,9 +383,6 @@ UploadFS.Uploader = function (options) {
                     xhr.open('POST', url, true);
                     xhr.send(chunk);
                 });
-
-            } else {
-                finish();
             }
         }
     };
