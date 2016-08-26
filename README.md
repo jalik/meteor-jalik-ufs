@@ -245,6 +245,7 @@ PhotosStore = new UploadFS.store.Local({
 If you need to modify the file before saving it to the store, you can to use the `transformWrite` option.
 If you want to modify the file before returning it (for display), then use the `transformRead` option.
 A common use is to resize/compress images to optimize the uploaded files.
+**NOTE:** Install the required libs (GM, ImageMagick, GraphicsMagicK or whatever you are using), these libs are not embedded in UploadFS.
 
 ```js
 PhotosStore = new UploadFS.store.Local({
