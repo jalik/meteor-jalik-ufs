@@ -50,6 +50,11 @@ UploadFS = {
      * @param callback
      */
     importFromURL: (url, file, store, callback) => {
-        store.importFromURL(url, file, callback);
+        if (typeof store === 'string') {
+            UploadFS.getStore(store).importFromURL(url, file, callback);
+        }
+        else if (typeof store === 'object') {
+            store.importFromURL(url, file, callback);
+        }
     }
 };

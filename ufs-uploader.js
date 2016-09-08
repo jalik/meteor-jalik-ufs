@@ -82,8 +82,8 @@ UploadFS.Uploader = function (options) {
     if (typeof options.onStop !== 'function') {
         throw new TypeError('onStop is not a function');
     }
-    if (!(options.store instanceof UploadFS.Store)) {
-        throw new TypeError('store is not an UploadFS.Store');
+    if (typeof options.store !== 'string' && !(options.store instanceof UploadFS.Store)) {
+        throw new TypeError('store must be the name of the store or an instance of UploadFS.Store');
     }
 
     // Public attributes
@@ -123,12 +123,17 @@ UploadFS.Uploader = function (options) {
     let elapsedTime = 0;
     let startTime = 0;
 
+    // Keep only the name of the store
+    if (store instanceof UploadFS.Store) {
+        store = store.getName();
+    }
+
     // Assign file to store
-    file.store = store.getName();
+    file.store = store;
 
     function finish() {
         // Finish the upload by telling the store the upload is complete
-        Meteor.call('ufsComplete', fileId, store.getName(), token, function (err, uploadedFile) {
+        Meteor.call('ufsComplete', fileId, store, token, function (err, uploadedFile) {
             if (err) {
                 // todo retry instead of abort
                 self.abort();
@@ -147,7 +152,7 @@ UploadFS.Uploader = function (options) {
      */
     self.abort = function () {
         // Remove the file from database
-        Meteor.call('ufsDelete', fileId, store.getName(), token, function (err, result) {
+        Meteor.call('ufsDelete', fileId, store, token, function (err, result) {
             if (err) {
                 console.error('ufs: cannot remove file ' + fileId + ' (' + err.message + ')');
                 self.onError(err);
@@ -429,7 +434,7 @@ UploadFS.Uploader = function (options) {
             uploading = false;
             self.onStop(file);
 
-            Meteor.call('ufsStop', fileId, store.getName(), token, function (err, result) {
+            Meteor.call('ufsStop', fileId, store, token, function (err, result) {
                 if (err) {
                     self.onError(err, file);
                 }
