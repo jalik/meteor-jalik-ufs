@@ -206,13 +206,23 @@ UploadFS.Store = function (options) {
          */
         self.createToken = function (fileId) {
             let token = self.generateToken();
-            return token && UploadFS.tokens.upsert({fileId: fileId}, {
-                $set: {
+
+            // Check if token exists
+            if (UploadFS.tokens.find({fileId: fileId}).count()) {
+                UploadFS.tokens.update({fileId: fileId}, {
+                    $set: {
+                        createdAt: new Date(),
+                        value: token
+                    }
+                });
+            } else {
+                UploadFS.tokens.insert({
                     createdAt: new Date(),
                     fileId: fileId,
                     value: token
-                }
-            }) ? token : null;
+                });
+            }
+            return token;
         };
 
         /**
