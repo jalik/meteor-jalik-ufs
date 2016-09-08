@@ -9,6 +9,11 @@ Also I'll be glad to receive donations, whatever you give it will be much apprec
 
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=SS78MUMW8AH4N)
 
+## Version 0.6.7
+
+- Allows to define stores on server only, use the store name directly as a reference on the client
+- Fixes an error caused by the use of an upsert in multi-server environment (mongo)
+
 ## Version 0.6.5
 
 - Fixes 504 Gateway timeout error when file is not served by UploadFS
@@ -179,7 +184,8 @@ UploadFS.config.tmpDirPermissions = '0700';
 
 ## Create a Store
 
-**All stores must be available on the client and the server.**
+**Since v0.6.7, you can share your store between client and server or define it on the server only.**
+**Before v0.6.7, a store must be available on the client and the server.**
 
 A store is the place where your files are saved, it could be your local hard drive or a distant cloud hosting solution.
 Let say you have a `Photos` collection which is used to save the files info.
@@ -570,7 +576,8 @@ Template.upload.events({
             // Create a new Uploader for this file
             var uploader = new UploadFS.Uploader({
                 // This is where the uploader will save the file
-                store: PhotosStore,
+                // since v0.6.7, you can pass the store instance or the store name directly
+                store: PhotosStore || 'photos',
                 // Optimize speed transfer by increasing/decreasing chunk size automatically
                 adaptive: true,
                 // Define the upload capacity (if upload speed is 1MB/s, then it will try to maintain upload at 80%, so 800KB/s)
@@ -641,6 +648,7 @@ This method is available both on the client and the server.
 var url = 'https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png';
 var attr = { name: 'Google Logo', description: 'Logo from www.google.com' };
 
+// You can import directly from the store instance
 PhotosStore.importFromURL(url, attr, function (err, file) {
     if (err) {
         displayError(err);
@@ -648,6 +656,9 @@ PhotosStore.importFromURL(url, attr, function (err, file) {
         console.log('Photo saved :', file);
     }
 });
+
+// Or import using the store name
+UploadFS.importFromURL(url, attr, storeName, callback);
 
 ```
 
