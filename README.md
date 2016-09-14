@@ -696,7 +696,11 @@ PhotosStore = new UploadFS.Store.Local({
 ## Display images
 
 To display a file, simply use the `url` attribute for an absolute URL or the `path` attribute for a relative URL.
+
 **NOTE: `path` is only available since v0.6.8**
+
+You can upgrade existing documents to add the `path` attribute by calling the `UploadFS.addPathAttributeToFiles(where)`
+which will upgrade all collections linked to any UploadFS store, the `where` option is not required, default predicate is `{path: null}`.
 
 Here is the template to display a list of photos :
 
