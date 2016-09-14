@@ -1,3 +1,7 @@
+import {Meteor} from 'meteor/meteor';
+import {_} from 'meteor/underscore';
+
+
 if (Meteor.isClient) {
 
     /**
@@ -48,5 +52,25 @@ if (Meteor.isClient) {
         input.style = 'display:none';
         document.body.appendChild(input);
         input.click();
+    };
+}
+
+
+if (Meteor.isServer) {
+
+    /**
+     * Adds the path attribute to files
+     * @param where
+     */
+    UploadFS.addPathAttributeToFiles = (where)=> {
+        _.each(UploadFS.getStores(), (store)=> {
+            let files = store.getCollection();
+
+            // By default update only files with no path set
+            files.find(where || {path: null}, {fields: {_id: 1}}).forEach((file)=> {
+                let path = store.getFileRelativeURL(file._id);
+                files.update({_id: file._id}, {$set: {path: path}});
+            });
+        });
     };
 }

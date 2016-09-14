@@ -21,15 +21,15 @@ Meteor.startup(() => {
             // Create the temp directory
             mkdirp(path, {mode: mode}, (err) => {
                 if (err) {
-                    console.error('ufs: cannot create temp directory at ' + path + ' (' + err.message + ')');
+                    console.error(`ufs: cannot create temp directory at "${path}" (${err.message})`);
                 } else {
-                    console.log('ufs: temp directory created at ' + path);
+                    console.log(`ufs: temp directory created at "${path}"`);
                 }
             });
         } else {
             // Set directory permissions
             fs.chmod(path, mode, (err) => {
-                err && console.error('ufs: cannot set temp directory permissions ' + mode + ' (' + err.message + ')');
+                err && console.error(`ufs: cannot set temp directory permissions ${mode} (${err.message})`);
             });
         }
     });
@@ -111,8 +111,7 @@ WebApp.connectHandlers.use((req, res, next) => {
 
         // Get file
         let fileId = match[2];
-        let file = store.getCollection().find(fileId);
-        if (!file) {
+        if (store.getCollection().find({_id: fileId}).count() === 0) {
             res.writeHead(404);
             res.end();
             return;
@@ -135,13 +134,13 @@ WebApp.connectHandlers.use((req, res, next) => {
         });
         req.on('end', Meteor.bindEnvironment(() => {
             // Update completed state
-            store.getCollection().update(fileId, {$set: fields});
+            store.getCollection().update({_id: fileId}, {$set: fields});
             ws.end();
         }));
         ws.on('error', (err) => {
-            console.error('ufs: cannot write chunk of file "' + fileId + '" (' + err.message + ')');
+            console.error(`ufs: cannot write chunk of file "${fileId}" (${err.message})`);
             fs.unlink(tmpFile, (err) => {
-                err && console.error('ufs: cannot delete temp file ' + tmpFile + ' (' + err.message + ')');
+                err && console.error(`ufs: cannot delete temp file "${tmpFile}" (${err.message})`);
             });
             res.writeHead(500);
             res.end();
@@ -174,7 +173,7 @@ WebApp.connectHandlers.use((req, res, next) => {
         }
 
         if (store.onRead !== null && store.onRead !== undefined && typeof store.onRead !== 'function') {
-            console.error('ufs: store "' + storeName + '" onRead is not a function');
+            console.error(`ufs: store "${storeName}" onRead is not a function`);
             res.writeHead(500);
             res.end();
             return;
@@ -185,7 +184,7 @@ WebApp.connectHandlers.use((req, res, next) => {
         let fileId = index !== -1 ? match[2].substr(0, index) : match[2];
 
         // Get file from database
-        let file = store.getCollection().findOne(fileId);
+        let file = store.getCollection().findOne({_id: fileId});
         if (!file) {
             res.writeHead(404);
             res.end();

@@ -9,6 +9,22 @@ Also I'll be glad to receive donations, whatever you give it will be much apprec
 
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=SS78MUMW8AH4N)
 
+## Version 0.6.8
+
+- Passes full predicate in CRUD operations instead of just the ID
+- Removes file tokens when file is uploaded or removed
+- Adds the "originalUrl" attribute to files imported from URLs
+- Adds the "path" attribute to uploaded files corresponding to the relative URL of the file
+- Adds UploadFS.Store.prototype.getRelativeURL(path) to get the relative URL of a store
+- Adds UploadFS.Store.prototype.getFileRelativeURL(path) to get the relative URL of a file in a store
+- Adds UploadFS.addPathAttributeToFiles(where) to add the path attribute to existing files
+- Unblock the UploadFS.importFromURL()
+- Fixes file deletion during upload (stop uploading and removes temp file)
+
+You can upgrade existing documents to add the `path` attribute by calling the `UploadFS.addPathAttributeToFiles(where)`
+which will upgrade all collections linked to any UploadFS store, the `where` option is not required, default predicate is `{path: null}`.
+
+
 ## Version 0.6.7
 
 - Allows to define stores on server only, use the store name directly as a reference on the client
@@ -380,10 +396,10 @@ Or you can save the thumbnails URL into the original file, it's the recommended 
 
 ```js
 Thumbnails128Store.onFinishUpload = function(file) {
-    Files.update(file.originalId, {$set: {thumb128Url: file.url}});
+    Files.update({_id: file.originalId}, {$set: {thumb128Url: file.url}});
 };
 Thumbnails64Store.onFinishUpload = function(file) {
-    Files.update(file.originalId, {$set: {thumb64Url: file.url}});
+    Files.update({_id: file.originalId}, {$set: {thumb64Url: file.url}});
 };
 ```
 
@@ -507,10 +523,10 @@ If you need to get a file directly from a store, do like below :
 
 ```js
 // Get the file from database
-var file = Photos.findOne(fileId);
+let file = Photos.findOne({_id: fileId});
 
 // Get the file stream from the store
-var readStream = PhotosStore.getReadStream(fileId, file);
+let readStream = PhotosStore.getReadStream(fileId, file);
 
 readStream.on('error', Meteor.bindEnvironment(function (error) {
     console.error(err);
@@ -526,7 +542,7 @@ If you need to save a file directly to a store, do like below :
 
 ```js
 // Insert the file in database
-var fileId = store.create(file);
+let fileId = store.create(file);
 
 // Save the file to the store
 store.write(stream, fileId, function(err, file) {
@@ -557,12 +573,12 @@ And there the code to upload the selected files :
 ```js
 Template.upload.events({
     'click button[name=upload]': function (ev) {
-        var self = this;
+        let self = this;
 
         UploadFS.selectFiles(function (file) {
-            // Prepare the file to insert in database, note that we don't provide an URL,
+            // Prepare the file to insert in database, note that we don't provide a URL,
             // it will be set automatically by the uploader when file transfer is complete.
-            var photo = {
+            let photo = {
                 name: file.name,
                 size: file.size,
                 type: file.type,
@@ -574,7 +590,7 @@ Template.upload.events({
             };
 
             // Create a new Uploader for this file
-            var uploader = new UploadFS.Uploader({
+            let uploader = new UploadFS.Uploader({
                 // This is where the uploader will save the file
                 // since v0.6.7, you can pass the store instance or the store name directly
                 store: PhotosStore || 'photos',
@@ -639,14 +655,13 @@ During uploading you can get some kind of useful information like the following 
  - `uploader.getRemainingTime()` returns the remaining time in milliseconds
  - `uploader.getSpeed()` returns the speed in bytes per second
 
-### Upload from an URL
+### Import file from a URL
 
-If you want to upload a file directly from a URL, use the `importFromURL(url, fileAttr, storeName, callback)` method.
-This method is available both on the client and the server.
+You can import a file from an absolute URL by using one of the following methods :
 
 ```js
-var url = 'https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png';
-var attr = { name: 'Google Logo', description: 'Logo from www.google.com' };
+let url = 'https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png';
+let attr = { name: 'Google Logo', description: 'Logo from www.google.com' };
 
 // You can import directly from the store instance
 PhotosStore.importFromURL(url, attr, function (err, file) {
@@ -657,15 +672,31 @@ PhotosStore.importFromURL(url, attr, function (err, file) {
     }
 });
 
-// Or import using the store name
+// Or using the common UFS method (requires the store name)
 UploadFS.importFromURL(url, attr, storeName, callback);
+```
 
+**NOTE: since v0.6.8, all imported files have the `originalUrl` attribute, this allows to know where the file comes from and also to do some checks before inserting the file with the `StorePermissions.insert`.**
+
+```js
+PhotosStore = new UploadFS.Store.Local({
+    name: 'photos',
+    collection: Photos,
+    permissions: new UploadFS.StorePermissions({
+        insert: function(userId, file) {
+            // Check if the file is imported from a URL
+            if (typeof file.originalUrl === 'string') {
+                // allow or not by doing some checks
+            }
+        }
+    })
+});
 ```
 
 ## Display images
 
-After that, if everything went good, you have you file saved to the store and in database.
-You can get the file as usual and display it using the url attribute of the document.
+To display a file, simply use the `url` attribute for an absolute URL or the `path` attribute for a relative URL.
+**NOTE: `path` is only available since v0.6.8**
 
 Here is the template to display a list of photos :
 

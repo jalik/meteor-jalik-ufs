@@ -17,15 +17,6 @@ UploadFS = {
     tokens: new Mongo.Collection('ufsTokens'),
 
     /**
-     * Returns the temporary file path
-     * @param fileId
-     * @return {string}
-     */
-    getTempFilePath: (fileId) => {
-        return `${UploadFS.config.tmpDir}/${fileId}`;
-    },
-
-    /**
      * Returns the store by its name
      * @param name
      * @return {UploadFS.Store}
@@ -43,6 +34,15 @@ UploadFS = {
     },
 
     /**
+     * Returns the temporary file path
+     * @param fileId
+     * @return {string}
+     */
+    getTempFilePath: (fileId) => {
+        return `${UploadFS.config.tmpDir}/${fileId}`;
+    },
+
+    /**
      * Imports a file from a URL
      * @param url
      * @param file
@@ -51,7 +51,7 @@ UploadFS = {
      */
     importFromURL: (url, file, store, callback) => {
         if (typeof store === 'string') {
-            UploadFS.getStore(store).importFromURL(url, file, callback);
+            Meteor.call('ufsImportURL', url, file, store, callback);
         }
         else if (typeof store === 'object') {
             store.importFromURL(url, file, callback);

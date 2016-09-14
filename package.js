@@ -1,6 +1,6 @@
 Package.describe({
     name: 'jalik:ufs',
-    version: '0.6.7',
+    version: '0.6.8',
     author: 'karl.stein.pro@gmail.com',
     summary: 'Base package for UploadFS',
     homepage: 'https://github.com/jalik/jalik-ufs',

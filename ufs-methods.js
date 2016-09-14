@@ -7,6 +7,7 @@ const http = Npm.require('http');
 const https = Npm.require('https');
 const Future = Npm.require('fibers/future');
 
+
 Meteor.methods({
 
     /**
@@ -16,9 +17,6 @@ Meteor.methods({
      * @param token
      */
     ufsComplete: function (fileId, storeName, token) {
-        check(fileId, String);
-        check(storeName, String);
-
         // Get store
         let store = UploadFS.getStore(storeName);
         if (!store) {
@@ -41,19 +39,23 @@ Meteor.methods({
 
         rs.on('error', Meteor.bindEnvironment(function (err) {
             console.error(err);
-            store.getCollection().remove(fileId);
+            store.getCollection().remove({_id: fileId});
             fut.throw(err);
         }));
 
         // Save file in the store
         store.write(rs, fileId, Meteor.bindEnvironment(function (err, file) {
             fs.unlink(tmpFile, function (err) {
-                err && console.error('ufs: cannot delete temp file ' + tmpFile + ' (' + err.message + ')');
+                err && console.error(`ufs: cannot delete temp file "${tmpFile}" (${err.message})`);
             });
 
             if (err) {
                 fut.throw(err);
             } else {
+                // File has been fully uploaded
+                // so we don't need to keep the token anymore.
+                // Also this ensure that the file cannot be modified with extra chunks later.
+                UploadFS.tokens.remove({fileId: fileId});
                 fut.return(file);
             }
         }));
@@ -114,25 +116,20 @@ Meteor.methods({
      * @returns {*}
      */
     ufsDelete: function (fileId, storeName, token) {
-        check(fileId, String);
-        check(storeName, String);
-
         // Check store
         let store = UploadFS.getStore(storeName);
         if (!store) {
             throw new Meteor.Error('invalid-store', "Store not found");
         }
-        // Check file
-        let file = store.getCollection().find(fileId, {fields: {userId: 1}});
-        if (!file) {
-            throw new Meteor.Error('invalid-file', "File not found");
+        // Ignore files that does not exist
+        if (store.getCollection().find({_id: fileId}).count() === 0) {
+            return 1;
         }
         // Check token
         if (!store.checkToken(token, fileId)) {
             throw new Meteor.Error('invalid-token', "Token is not valid");
         }
-
-        return store.getCollection().remove(fileId);
+        return store.getCollection().remove({_id: fileId});
     },
 
     /**
@@ -143,10 +140,6 @@ Meteor.methods({
      * @return {*}
      */
     ufsImportURL: function (url, file, storeName) {
-        check(url, String);
-        check(file, Object);
-        check(storeName, String);
-
         // Check URL
         if (typeof url !== 'string' || url.length <= 0) {
             throw new Meteor.Error('invalid-url', "The url is not valid");
@@ -171,6 +164,14 @@ Meteor.methods({
         if (store.getFilter() instanceof UploadFS.Filter) {
             store.getFilter().check(file);
         }
+
+        if (file.originalUrl) {
+            console.warn(`ufs: The "originalUrl" attribute is automatically set when importing a file from a URL`);
+        }
+
+        // Add original URL
+        file.originalUrl = url;
+
         // Create the file
         file._id = store.create(file);
 
@@ -183,6 +184,8 @@ Meteor.methods({
         } else if (/https:\/\//i.test(url)) {
             proto = https;
         }
+
+        this.unblock();
 
         // Download file
         proto.get(url, Meteor.bindEnvironment(function (res) {
@@ -208,16 +211,13 @@ Meteor.methods({
      * @returns {*}
      */
     ufsStop: function (fileId, storeName, token) {
-        check(fileId, String);
-        check(storeName, String);
-
         // Check store
         let store = UploadFS.getStore(storeName);
         if (!store) {
             throw new Meteor.Error('invalid-store', "Store not found");
         }
         // Check file
-        let file = store.getCollection().find(fileId, {fields: {userId: 1}});
+        let file = store.getCollection().find({_id: fileId}, {fields: {userId: 1}});
         if (!file) {
             throw new Meteor.Error('invalid-file', "File not found");
         }
@@ -226,7 +226,7 @@ Meteor.methods({
             throw new Meteor.Error('invalid-token', "Token is not valid");
         }
 
-        return store.getCollection().update(fileId, {
+        return store.getCollection().update({_id: fileId}, {
             $set: {uploading: false}
         });
     }

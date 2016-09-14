@@ -154,7 +154,7 @@ UploadFS.Uploader = function (options) {
         // Remove the file from database
         Meteor.call('ufsDelete', fileId, store, token, function (err, result) {
             if (err) {
-                console.error('ufs: cannot remove file ' + fileId + ' (' + err.message + ')');
+                console.error(`ufs: cannot remove file "${fileId}" (${err.message})`);
                 self.onError(err);
             }
         });
