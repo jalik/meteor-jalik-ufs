@@ -17,6 +17,10 @@ Meteor.methods({
      * @param token
      */
     ufsComplete: function (fileId, storeName, token) {
+        check(fileId, String);
+        check(storeName, String);
+        check(token, String);
+
         // Get store
         let store = UploadFS.getStore(storeName);
         if (!store) {
@@ -116,6 +120,10 @@ Meteor.methods({
      * @returns {*}
      */
     ufsDelete: function (fileId, storeName, token) {
+        check(fileId, String);
+        check(storeName, String);
+        check(token, String);
+
         // Check store
         let store = UploadFS.getStore(storeName);
         if (!store) {
@@ -140,6 +148,10 @@ Meteor.methods({
      * @return {*}
      */
     ufsImportURL: function (url, file, storeName) {
+        check(url, String);
+        check(file, String);
+        check(storeName, String);
+
         // Check URL
         if (typeof url !== 'string' || url.length <= 0) {
             throw new Meteor.Error('invalid-url', "The url is not valid");
@@ -211,6 +223,10 @@ Meteor.methods({
      * @returns {*}
      */
     ufsStop: function (fileId, storeName, token) {
+        check(fileId, String);
+        check(storeName, String);
+        check(token, String);
+
         // Check store
         let store = UploadFS.getStore(storeName);
         if (!store) {
