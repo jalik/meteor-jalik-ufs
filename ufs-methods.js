@@ -90,6 +90,8 @@ Meteor.methods({
         file.complete = false;
         file.uploading = false;
         file.extension = file.name && file.name.substr((~-file.name.lastIndexOf('.') >>> 0) + 2).toLowerCase();
+        // Assign file MIME type based on the extension
+        file.type = UploadFS.getMimeType(file.extension) || 'application/octet-stream';
         file.progress = 0;
         file.size = parseInt(file.size) || 0;
         file.userId = file.userId || this.userId;
@@ -103,7 +105,7 @@ Meteor.methods({
         // Create the file
         let fileId = store.create(file);
         let token = store.createToken(fileId);
-        let uploadUrl = store.getURL(fileId + '?token=' + token);
+        let uploadUrl = store.getURL(`${fileId}?token=${token}`);
 
         return {
             fileId: fileId,
@@ -149,7 +151,7 @@ Meteor.methods({
      */
     ufsImportURL: function (url, file, storeName) {
         check(url, String);
-        check(file, String);
+        check(file, Object);
         check(storeName, String);
 
         // Check URL
@@ -169,8 +171,13 @@ Meteor.methods({
         // Extract file info
         if (!file.name) {
             file.name = url.replace(/\?.*$/, '').split('/').pop();
-            file.extension = file.name.split('.').pop();
-            file.type = 'image/' + file.extension;
+        }
+        if (file.name && !file.extension) {
+            file.extension = file.name && file.name.substr((~-file.name.lastIndexOf('.') >>> 0) + 2).toLowerCase();
+        }
+        if (file.extension && !file.type) {
+            // Assign file MIME type based on the extension
+            file.type = UploadFS.getMimeType(file.extension) || 'application/octet-stream';
         }
         // Check if file is valid
         if (store.getFilter() instanceof UploadFS.Filter) {
@@ -185,6 +192,9 @@ Meteor.methods({
         file.originalUrl = url;
 
         // Create the file
+        file.complete = false;
+        file.uploading = true;
+        file.progress = 0;
         file._id = store.create(file);
 
         let fut = new Future();

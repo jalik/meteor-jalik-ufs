@@ -116,16 +116,18 @@ UploadFS.Filter = function (options) {
 };
 
 function checkContentType(type, list) {
-    if (_.contains(list, type)) {
-        return true;
-    } else {
-        let wildCardGlob = '/*';
-        let wildcards = _.filter(list, (item) => {
-            return item.indexOf(wildCardGlob) > 0;
-        });
-
-        if (_.contains(wildcards, type.replace(/(\/.*)$/, wildCardGlob))) {
+    if (type) {
+        if (_.contains(list, type)) {
             return true;
+        } else {
+            let wildCardGlob = '/*';
+            let wildcards = _.filter(list, (item) => {
+                return item.indexOf(wildCardGlob) > 0;
+            });
+
+            if (_.contains(wildcards, type.replace(/(\/.*)$/, wildCardGlob))) {
+                return true;
+            }
         }
     }
     return false;

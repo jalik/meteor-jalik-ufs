@@ -9,6 +9,13 @@ Also I'll be glad to receive donations, whatever you give it will be much apprec
 
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=SS78MUMW8AH4N)
 
+## Version 0.6.9
+- Adds ufs-mime.js file to handle mime related operations
+- Sets default file type to "application/octet-stream"
+- Detects automatically MIME type by checking file extension on upload (#84)
+- Fixes error thrown by UploadFS.Filter.checkContentType() when file type is empty
+- Fixes check(file, Object); into "ufsImportURL" method
+
 ## Version 0.6.8
 
 - Passes full predicate in CRUD operations instead of just the ID
@@ -198,7 +205,7 @@ UploadFS.config.tmpDir = '/tmp/uploads';
 UploadFS.config.tmpDirPermissions = '0700';
 ```
 
-## Create a Store
+## Creating a Store (server)
 
 **Since v0.6.7, you can share your store between client and server or define it on the server only.**
 **Before v0.6.7, a store must be available on the client and the server.**
@@ -222,7 +229,7 @@ PhotosStore = new UploadFS.store.Local({
 });
 ```
 
-## Filter uploads
+## Filtering uploads (server)
 
 You can set an `UploadFS.Filter` to the store to define restrictions on file uploads.
 Filter is tested before inserting a file in the collection.
@@ -262,7 +269,7 @@ PhotosStore = new UploadFS.store.Local({
 });
 ```
 
-## Transform files
+## Transforming files (server)
 
 If you need to modify the file before saving it to the store, you can to use the `transformWrite` option.
 If you want to modify the file before returning it (for display), then use the `transformRead` option.
@@ -295,7 +302,7 @@ PhotosStore = new UploadFS.store.Local({
 });
 ```
 
-## Copy files (since v0.3.6)
+## Copying files (since v0.3.6) (server)
 
 You can copy files to other stores on the fly, it could be for backup or just to have alternative versions of the same file (eg: thumbnails).
 To copy files that are saved in a store, use the `copyTo` option, you just need to pass an array of stores to copy to.
@@ -403,7 +410,7 @@ Thumbnails64Store.onFinishUpload = function(file) {
 };
 ```
 
-## Permissions
+## Setting permissions (server)
 
 If you don't want anyone to do anything, you must define permission rules.
 By default, there is no restriction (except the filter) on insert, remove and update actions.
@@ -445,7 +452,7 @@ PhotosStore = new UploadFS.store.Local({
 });
 ```
 
-## Secure file access
+## Securing file access (server)
 
 When returning the file for a HTTP request, you can do some checks to decide whether or not the file should be sent to the client.
 This is done by defining the `onRead()` method on the store.
@@ -477,7 +484,7 @@ PhotosStore = new UploadFS.store.Local({
 });
 ```
 
-## Store events
+## Handling store events and errors (client/server)
 
 Some events are triggered to allow you to do something at the right moment on server side.
 
@@ -489,19 +496,7 @@ PhotosStore = new UploadFS.store.Local({
     // Called when file has been uploaded
     onFinishUpload: function (file) {
         console.log(file.name + ' has been uploaded');
-    }
-});
-```
-
-## Handle errors
-
-On server side, you can do something when there is a store IO error.
-
-```js
-PhotosStore = new UploadFS.store.Local({
-    collection: Photos,
-    name: 'photos',
-    path: '/uploads/photos',
+    },
     // Called when a copy error happened
     onCopyError: function (err, fileId, file) {
         console.error('Cannot create copy ' + file.name);
@@ -517,7 +512,7 @@ PhotosStore = new UploadFS.store.Local({
 });
 ```
 
-## Read a file from a store
+## Reading a file from a store (server)
 
 If you need to get a file directly from a store, do like below :
 
@@ -536,7 +531,7 @@ readStream.on('data', Meteor.bindEnvironment(function (data) {
 }));
 ```
 
-## Write a file to a store
+## Writing a file to a store (server)
 
 If you need to save a file directly to a store, do like below :
 
@@ -554,9 +549,9 @@ store.write(stream, fileId, function(err, file) {
 });
 ```
 
-## Upload files
+## Uploading files
 
-### Upload from a file
+### Uploading from a local file (client)
 
 When the store on the server is configured, you can upload files to it.
 
@@ -655,7 +650,7 @@ During uploading you can get some kind of useful information like the following 
  - `uploader.getRemainingTime()` returns the remaining time in milliseconds
  - `uploader.getSpeed()` returns the speed in bytes per second
 
-### Import file from a URL
+### Importing file from a URL (server)
 
 You can import a file from an absolute URL by using one of the following methods :
 
@@ -676,6 +671,8 @@ PhotosStore.importFromURL(url, attr, function (err, file) {
 UploadFS.importFromURL(url, attr, storeName, callback);
 ```
 
+**WARNING: File type detection is based on the file name in the URL so if the URL is obfuscated it won't work (http://www.hello.com/images/123456 won't work, http://www.hello.com/images/123456.png will work).**
+
 **NOTE: since v0.6.8, all imported files have the `originalUrl` attribute, this allows to know where the file comes from and also to do some checks before inserting the file with the `StorePermissions.insert`.**
 
 ```js
@@ -693,7 +690,26 @@ PhotosStore = new UploadFS.Store.Local({
 });
 ```
 
-## Display images
+## Setting MIME types (server)
+
+**NOTE: only available since v0.6.9**
+
+UploadFS automatically detects common MIME types based on the file extension.
+So when uploading a file, if the `file.type` is not set, UploadFS will check in its MIME list and assign the corresponding MIME,
+you can also add your own MIME types.
+
+```js
+// Adds KML and KMZ MIME types detection
+UploadFS.addMimeType('kml', 'application/vnd.google-earth.kml+xml');
+UploadFS.addMimeType('kmz', 'application/vnd.google-earth.kmz');
+```
+
+If you want to get all MIME types :
+```js
+const MIME = UploadFS.getMimeTypes();
+```
+
+## Displaying images (client)
 
 To display a file, simply use the `url` attribute for an absolute URL or the `path` attribute for a relative URL.
 
@@ -732,7 +748,7 @@ Template.photos.helpers({
 });
 ```
 
-## Template helpers
+## Using template helpers (client)
 
 Some helpers are available by default to help you work with files inside templates.
 
