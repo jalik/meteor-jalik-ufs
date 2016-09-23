@@ -91,7 +91,9 @@ Meteor.methods({
         file.uploading = false;
         file.extension = file.name && file.name.substr((~-file.name.lastIndexOf('.') >>> 0) + 2).toLowerCase();
         // Assign file MIME type based on the extension
-        file.type = UploadFS.getMimeType(file.extension) || 'application/octet-stream';
+        if (file.extension && !file.type) {
+            file.type = UploadFS.getMimeType(file.extension) || 'application/octet-stream';
+        }
         file.progress = 0;
         file.size = parseInt(file.size) || 0;
         file.userId = file.userId || this.userId;

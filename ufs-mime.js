@@ -35,7 +35,7 @@ const MIME = {
     'au': 'audio/basic',
     'midi': 'audio/midi',
     'mp2': 'audio/mpeg',
-    'mp3': 'audio/mpeg3',
+    'mp3': 'audio/mpeg',
     'mpa': 'audio/mpeg',
     'ra': 'audio/vnd.rn-realaudio',
     'wav': 'audio/x-wav',
