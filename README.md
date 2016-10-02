@@ -9,6 +9,10 @@ Also I'll be glad to receive donations, whatever you give it will be much apprec
 
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=SS78MUMW8AH4N)
 
+## Version 0.7.0_2
+- Adds support for `Range` request headers (to seek audio/video files)
+- Upgrades dependencies
+
 ## Version 0.6.9
 - Adds ufs-mime.js file to handle mime related operations
 - Sets default file type to "application/octet-stream"
