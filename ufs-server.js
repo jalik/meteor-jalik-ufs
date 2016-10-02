@@ -224,10 +224,35 @@ WebApp.connectHandlers.use((req, res, next) => {
                 // Transform stream
                 store.transformRead(rs, ws, fileId, file, req, headers);
 
-                // Parse headers
+                // Parse request headers
                 if (typeof req.headers === 'object') {
-                    // Compress data using accept-encoding header
-                    if (typeof req.headers['accept-encoding'] === 'string') {
+
+                    // Send partial data
+                    if (typeof req.headers.range === 'string') {
+                        let range = req.headers.range;
+
+                        if (!range) {
+                            res.writeHead(416);
+                            res.end();
+                            return;
+                        }
+
+                        let positions = range.replace(/bytes=/, '').split('-');
+                        let start = parseInt(positions[0], 10);
+                        let total = file.size;
+                        let end = positions[1] ? parseInt(positions[1], 10) : total - 1;
+                        let chunkSize = (end - start) + 1;
+
+                        headers['Content-Range'] = `bytes ${start}-${end}/${total}`;
+                        headers['Accept-Ranges'] = `bytes`;
+                        headers['Content-Length'] = chunkSize;
+                        res.writeHead(206, headers);
+                        ws.pipe(res);
+                        return;
+                    }
+
+                    // Compress data using if needed (ignore audio/video as they are already compressed)
+                    if (typeof req.headers['accept-encoding'] === 'string' && !/^(audio|video)/.test(file.type)) {
                         let accept = req.headers['accept-encoding'];
 
                         // Compress with gzip
