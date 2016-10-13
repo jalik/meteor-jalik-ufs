@@ -118,10 +118,8 @@ UploadFS.addMimeType = function (extension, mime) {
  * @returns {*}
  */
 UploadFS.getMimeType = function (extension) {
-    if (extension) {
-        extension = extension.toLowerCase();
-        return MIME[extension];
-    }
+    extension = extension.toLowerCase();
+    return MIME[extension];
 };
 
 /**

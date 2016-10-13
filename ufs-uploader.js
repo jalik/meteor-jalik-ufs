@@ -358,8 +358,8 @@ UploadFS.Uploader = function (options) {
                                 } else {
                                     Meteor.setTimeout(self.sendChunk, self.transferDelay);
                                 }
-
-                            } else if (!_.contains([402, 403, 404, 500], xhr.status)) {
+                            }
+                            else if (!_.contains([402, 403, 404, 500], xhr.status)) {
                                 // Retry until max tries is reach
                                 // But don't retry if these errors occur
                                 if (tries <= self.maxTries) {
@@ -369,6 +369,9 @@ UploadFS.Uploader = function (options) {
                                 } else {
                                     self.abort();
                                 }
+                            }
+                            else {
+                                self.abort();
                             }
                         }
                     };

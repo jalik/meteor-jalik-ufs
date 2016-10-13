@@ -6,37 +6,56 @@ import {_} from 'meteor/underscore';
  * @constructor
  */
 UploadFS.StorePermissions = function (options) {
-    let self = this;
-
+    // Default options
     options = _.extend({
         insert: null,
         remove: null,
         update: null
     }, options);
 
+    // Check options
     if (typeof options.insert === 'function') {
-        self.insert = options.insert;
+        this.insert = options.insert;
     }
     if (typeof options.remove === 'function') {
-        self.remove = options.remove;
+        this.remove = options.remove;
     }
     if (typeof options.update === 'function') {
-        self.update = options.update;
+        this.update = options.update;
     }
 
-    self.checkInsert = (userId, file) => {
-        if (typeof self.insert === 'function') {
-            self.insert.call(self, userId, file);
+    let checkPermission = (permission, userId, file)=> {
+        if (typeof this[permission] === 'function') {
+            return this[permission](userId, file);
         }
+        return true; // by default allow all
     };
-    self.checkRemove = (userId, file) => {
-        if (typeof self.remove === 'function') {
-            self.remove.call(self, userId, file);
-        }
+
+    /**
+     * Checks the insert permission
+     * @param userId
+     * @param file
+     * @returns {*}
+     */
+    this.checkInsert = (userId, file) => {
+        return checkPermission('insert', userId, file);
     };
-    self.checkUpdate = (userId, file) => {
-        if (typeof self.update === 'function') {
-            self.update.call(self, userId, file);
-        }
+    /**
+     * Checks the remove permission
+     * @param userId
+     * @param file
+     * @returns {*}
+     */
+    this.checkRemove = (userId, file) => {
+        return checkPermission('remove', userId, file);
+    };
+    /**
+     * Checks the update permission
+     * @param userId
+     * @param file
+     * @returns {*}
+     */
+    this.checkUpdate = (userId, file) => {
+        return checkPermission('update', userId, file);
     };
 };

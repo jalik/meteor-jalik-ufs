@@ -69,7 +69,7 @@ Meteor.methods({
     /**
      * Creates the file and returns the file upload token
      * @param file
-     * @returns {{fileId: file, token: *, url}}
+     * @returns {{fileId: string, token: *, url}}
      */
     ufsCreate: function (file) {
         check(file, Object);

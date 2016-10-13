@@ -9,6 +9,11 @@ Also I'll be glad to receive donations, whatever you give it will be much apprec
 
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=SS78MUMW8AH4N)
 
+## Version 0.7.1
+- Adds default store permissions (`UploadFS.config.defaultStorePermissions`)
+- Fixes store permissions (#95)
+- Fixes HTTP `Range` result from stream (#94) : works with ufs-local and ufs-gridfs
+
 ## Version 0.7.0_2
 - Adds support for `Range` request headers (to seek audio/video files)
 - Upgrades dependencies
@@ -187,6 +192,22 @@ In this documentation, I am using the `UploadFS.store.Local` store which saves f
 You can access and modify settings via `UploadFS.config`.
 
 ```js
+// Set default permissions for all stores (you can later overwrite the default permissions on each store)
+UploadFS.config.defaultStorePermissions = new UploadFS.StorePermissions({
+    insert: function (userId, doc) {
+        return userId;
+    },
+    update: function (userId, doc) {
+        return userId === doc.userId;
+    },
+    remove: function (userId, doc) {
+        return userId === doc.userId;
+    }
+});
+
+// Use HTTPS in URLs
+UploadFS.config.https = true;
+
 // Activate simulation for slowing file reading
 UploadFS.config.simulateReadDelay = 1000; // 1 sec
 
@@ -452,6 +473,22 @@ PhotosStore = new UploadFS.store.Local({
         remove: function (userId, doc) {
             return userId === doc.userId;
         }
+    }
+});
+```
+
+or you can set default permissions for all stores (since v0.7.1) :
+
+```js
+UploadFS.config.defaultStorePermissions = new UploadFS.StorePermissions({
+    insert: function (userId, doc) {
+        return userId;
+    },
+    update: function (userId, doc) {
+        return userId === doc.userId;
+    },
+    remove: function (userId, doc) {
+        return userId === doc.userId;
     }
 });
 ```

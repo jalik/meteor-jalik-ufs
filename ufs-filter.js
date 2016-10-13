@@ -8,7 +8,7 @@ import {_} from 'meteor/underscore';
 UploadFS.Filter = function (options) {
     let self = this;
 
-    // Set default options
+    // Default options
     options = _.extend({
         contentTypes: null,
         extensions: null,

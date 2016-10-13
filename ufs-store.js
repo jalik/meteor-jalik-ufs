@@ -1,4 +1,5 @@
 import {_} from 'meteor/underscore';
+import {check} from 'meteor/check';
 import {Meteor} from 'meteor/meteor';
 import {Mongo} from 'meteor/mongo';
 
@@ -10,7 +11,7 @@ import {Mongo} from 'meteor/mongo';
 UploadFS.Store = function (options) {
     let self = this;
 
-    // Set default options
+    // Default options
     options = _.extend({
         collection: null,
         filter: null,
@@ -74,7 +75,7 @@ UploadFS.Store = function (options) {
     self.onRead = options.onRead || self.onRead;
     self.onReadError = options.onReadError || self.onReadError;
     self.onWriteError = options.onWriteError || self.onWriteError;
-    self.permissions = options.permissions || new UploadFS.StorePermissions();
+    self.permissions = options.permissions;
 
     // Private attributes
     let collection = options.collection;
@@ -83,6 +84,17 @@ UploadFS.Store = function (options) {
     let name = options.name;
     let transformRead = options.transformRead;
     let transformWrite = options.transformWrite;
+
+    // Set default permissions
+    if (!(self.permissions instanceof UploadFS.StorePermissions)) {
+        // Uses user's default permissions or UFS default permissions (deny all)
+        if (UploadFS.config.defaultStorePermissions instanceof UploadFS.StorePermissions) {
+            self.permissions = UploadFS.config.defaultStorePermissions;
+        } else {
+            self.permissions = new UploadFS.StorePermissions();
+            console.warn(`ufs: permissions are not defined for store "${name}"`);
+        }
+    }
 
     // Add the store to the list
     UploadFS.getStores()[name] = self;
@@ -372,17 +384,23 @@ UploadFS.Store = function (options) {
 
         // Code executed before inserting file
         collection.before.insert(function (userId, file) {
-            self.permissions.checkInsert(userId, file);
+            if (!self.permissions.checkInsert(userId, file)) {
+                throw new Meteor.Error('forbidden', "Forbidden");
+            }
         });
 
         // Code executed before updating file
         collection.before.update(function (userId, file, fields, modifiers) {
-            self.permissions.checkUpdate(userId, file);
+            if (!self.permissions.checkUpdate(userId, file)) {
+                throw new Meteor.Error('forbidden', "Forbidden");
+            }
         });
 
         // Code executed before removing file
         collection.before.remove(function (userId, file) {
-            self.permissions.checkRemove(userId, file);
+            if (!self.permissions.checkRemove(userId, file)) {
+                throw new Meteor.Error('forbidden', "Forbidden");
+            }
 
             // Delete the physical file in the store
             self.delete(file._id);

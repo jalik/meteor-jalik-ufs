@@ -199,8 +199,46 @@ WebApp.connectHandlers.use((req, res, next) => {
         d.run(() => {
             // Check if the file can be accessed
             if (store.onRead.call(store, fileId, file, req, res) !== false) {
+                let options = {};
+                let status = 200;
+
+                // Prepare response headers
+                let headers = {
+                    'Content-Type': file.type,
+                    'Content-Length': file.size
+                };
+
+                // Parse request headers
+                if (typeof req.headers === 'object') {
+                    // Send data in range
+                    if (typeof req.headers.range === 'string') {
+                        let range = req.headers.range;
+
+                        // Range is not valid
+                        if (!range) {
+                            res.writeHead(416);
+                            res.end();
+                            return;
+                        }
+
+                        let positions = range.replace(/bytes=/, '').split('-');
+                        let start = parseInt(positions[0], 10);
+                        let total = file.size;
+                        let end = positions[1] ? parseInt(positions[1], 10) : total - 1;
+
+                        // Update headers
+                        headers['Content-Range'] = `bytes ${start}-${end}/${total}`;
+                        headers['Accept-Ranges'] = `bytes`;
+                        headers['Content-Length'] = (end - start) + 1;
+
+                        status = 206; // partial content
+                        options.start = start;
+                        options.end = end;
+                    }
+                }
+
                 // Open the file stream
-                let rs = store.getReadStream(fileId, file);
+                let rs = store.getReadStream(fileId, file, options);
                 let ws = new stream.PassThrough();
 
                 rs.on('error', Meteor.bindEnvironment((err) => {
@@ -216,41 +254,11 @@ WebApp.connectHandlers.use((req, res, next) => {
                     ws.emit('end');
                 });
 
-                let headers = {
-                    'Content-Type': file.type,
-                    'Content-Length': file.size
-                };
-
                 // Transform stream
                 store.transformRead(rs, ws, fileId, file, req, headers);
 
                 // Parse request headers
                 if (typeof req.headers === 'object') {
-
-                    // Send partial data
-                    if (typeof req.headers.range === 'string') {
-                        let range = req.headers.range;
-
-                        if (!range) {
-                            res.writeHead(416);
-                            res.end();
-                            return;
-                        }
-
-                        let positions = range.replace(/bytes=/, '').split('-');
-                        let start = parseInt(positions[0], 10);
-                        let total = file.size;
-                        let end = positions[1] ? parseInt(positions[1], 10) : total - 1;
-                        let chunkSize = (end - start) + 1;
-
-                        headers['Content-Range'] = `bytes ${start}-${end}/${total}`;
-                        headers['Accept-Ranges'] = `bytes`;
-                        headers['Content-Length'] = chunkSize;
-                        res.writeHead(206, headers);
-                        ws.pipe(res);
-                        return;
-                    }
-
                     // Compress data using if needed (ignore audio/video as they are already compressed)
                     if (typeof req.headers['accept-encoding'] === 'string' && !/^(audio|video)/.test(file.type)) {
                         let accept = req.headers['accept-encoding'];
@@ -259,7 +267,7 @@ WebApp.connectHandlers.use((req, res, next) => {
                         if (accept.match(/\bgzip\b/)) {
                             headers['Content-Encoding'] = 'gzip';
                             delete headers['Content-Length'];
-                            res.writeHead(200, headers);
+                            res.writeHead(status, headers);
                             ws.pipe(zlib.createGzip()).pipe(res);
                             return;
                         }
@@ -267,7 +275,7 @@ WebApp.connectHandlers.use((req, res, next) => {
                         else if (accept.match(/\bdeflate\b/)) {
                             headers['Content-Encoding'] = 'deflate';
                             delete headers['Content-Length'];
-                            res.writeHead(200, headers);
+                            res.writeHead(status, headers);
                             ws.pipe(zlib.createDeflate()).pipe(res);
                             return;
                         }
@@ -276,7 +284,7 @@ WebApp.connectHandlers.use((req, res, next) => {
 
                 // Send raw data
                 if (!headers['Content-Encoding']) {
-                    res.writeHead(200, headers);
+                    res.writeHead(status, headers);
                     ws.pipe(res);
                 }
 
