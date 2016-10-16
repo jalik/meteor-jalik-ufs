@@ -24,9 +24,9 @@ UploadFS.StorePermissions = function (options) {
         this.update = options.update;
     }
 
-    let checkPermission = (permission, userId, file)=> {
+    let checkPermission = (permission, userId, file, fields, modifiers)=> {
         if (typeof this[permission] === 'function') {
-            return this[permission](userId, file);
+            return this[permission](userId, file, fields, modifiers);
         }
         return true; // by default allow all
     };
@@ -53,9 +53,11 @@ UploadFS.StorePermissions = function (options) {
      * Checks the update permission
      * @param userId
      * @param file
+     * @param fields
+     * @param modifiers
      * @returns {*}
      */
-    this.checkUpdate = (userId, file) => {
-        return checkPermission('update', userId, file);
+    this.checkUpdate = (userId, file, fields, modifiers) => {
+        return checkPermission('update', userId, file, fields, modifiers);
     };
 };

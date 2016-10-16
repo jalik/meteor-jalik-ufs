@@ -117,6 +117,13 @@ WebApp.connectHandlers.use((req, res, next) => {
             return;
         }
 
+        // Check upload token
+        if (!store.checkToken(req.query.token, fileId)) {
+            res.writeHead(403);
+            res.end();
+            return;
+        }
+
         let tmpFile = UploadFS.getTempFilePath(fileId);
         let ws = fs.createWriteStream(tmpFile, {flags: 'a'});
         let fields = {uploading: true};
@@ -133,8 +140,8 @@ WebApp.connectHandlers.use((req, res, next) => {
             res.end();
         });
         req.on('end', Meteor.bindEnvironment(() => {
-            // Update completed state
-            store.getCollection().update({_id: fileId}, {$set: fields});
+            // Update completed state without triggering hooks
+            store.getCollection().direct.update({_id: fileId}, {$set: fields});
             ws.end();
         }));
         ws.on('error', (err) => {

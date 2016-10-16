@@ -322,7 +322,7 @@ UploadFS.Store = function (options) {
 
                     // Sets the file URL when file transfer is complete,
                     // this way, the image will loads entirely.
-                    collection.update({_id: fileId}, {
+                    collection.direct.update({_id: fileId}, {
                         $set: {
                             complete: file.complete,
                             path: file.path,
@@ -391,7 +391,7 @@ UploadFS.Store = function (options) {
 
         // Code executed before updating file
         collection.before.update(function (userId, file, fields, modifiers) {
-            if (!self.permissions.checkUpdate(userId, file)) {
+            if (!self.permissions.checkUpdate(userId, file, fields, modifiers)) {
                 throw new Meteor.Error('forbidden', "Forbidden");
             }
         });

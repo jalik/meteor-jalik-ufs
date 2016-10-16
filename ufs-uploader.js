@@ -381,7 +381,7 @@ UploadFS.Uploader = function (options) {
                     // let formData = new FormData();
                     // formData.append('progress', progress);
                     // formData.append('chunk', chunk);
-                    let url = postUrl + '&progress=' + progress;
+                    let url = `${postUrl}&progress=${progress}`;
 
                     timeA = Date.now();
                     timeB = null;
