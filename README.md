@@ -9,143 +9,6 @@ Also I'll be glad to receive donations, whatever you give it will be much apprec
 
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=SS78MUMW8AH4N)
 
-## Version 0.7.1
-- Adds default store permissions (`UploadFS.config.defaultStorePermissions`)
-- Fixes store permissions (#95)
-- Fixes HTTP `Range` result from stream (#94) : works with ufs-local and ufs-gridfs
-
-## Version 0.7.0_2
-- Adds support for `Range` request headers (to seek audio/video files)
-- Upgrades dependencies
-
-## Version 0.6.9
-- Adds ufs-mime.js file to handle mime related operations
-- Sets default file type to "application/octet-stream"
-- Detects automatically MIME type by checking file extension on upload (#84)
-- Fixes error thrown by UploadFS.Filter.checkContentType() when file type is empty
-- Fixes check(file, Object); into "ufsImportURL" method
-
-## Version 0.6.8
-
-- Passes full predicate in CRUD operations instead of just the ID
-- Removes file tokens when file is uploaded or removed
-- Adds the "originalUrl" attribute to files imported from URLs
-- Adds the "path" attribute to uploaded files corresponding to the relative URL of the file
-- Adds UploadFS.Store.prototype.getRelativeURL(path) to get the relative URL of a store
-- Adds UploadFS.Store.prototype.getFileRelativeURL(path) to get the relative URL of a file in a store
-- Adds UploadFS.addPathAttributeToFiles(where) to add the path attribute to existing files
-- Unblock the UploadFS.importFromURL()
-- Fixes file deletion during upload (stop uploading and removes temp file)
-
-You can upgrade existing documents to add the `path` attribute by calling the `UploadFS.addPathAttributeToFiles(where)`
-which will upgrade all collections linked to any UploadFS store, the `where` option is not required, default predicate is `{path: null}`.
-
-
-## Version 0.6.7
-
-- Allows to define stores on server only, use the store name directly as a reference on the client
-- Fixes an error caused by the use of an upsert in multi-server environment (mongo)
-
-## Version 0.6.5
-
-- Fixes 504 Gateway timeout error when file is not served by UploadFS
-
-## Version 0.6.4
-
-- Allows to set temp directory permissions
-
-## Version 0.6.3
-
-- Fixes iOS and Android issues
-- Adds CORS support
-
-## Version 0.6.1
-
-- Brings a huge improvement to large file transfer
-- Uses POST HTTP method instead of Meteor methods to upload files
-- Simplifies code for future versions
-
-### Breaking changes
-
-#### UploadFS.readAsArrayBuffer() is DEPRECATED
-
-The method `UploadFS.readAsArrayBuffer()` is not available anymore, as uploads are using POST binary data, we don't need `ArrayBuffer`.
-
-```js
-UploadFS.selectFiles(function(ev){
-    UploadFS.readAsArrayBuffer(ev, function (data, file) {
-        let photo = {
-            name: file.name,
-            size: file.size,
-            type: file.type
-        };
-        let worker = new UploadFS.Uploader({
-            store: photosStore,
-            data: data,
-            file: photo
-        });
-        worker.start();
-    });
-});
-```
-
-The new code is smaller and easier to read :
-
-```js
-UploadFS.selectFiles(function(file){
-    let photo = {
-        name: file.name,
-        size: file.size,
-        type: file.type
-    };
-    let worker = new UploadFS.Uploader({
-        store: photosStore,
-        data: file,
-        file: photo
-    });
-    worker.start();
-});
-```
-
-#### Permissions are defined differently
-
-Before `v0.6.1` you would do like this :
-
-```js
-Photos.allow({
-    insert: function (userId, doc) {
-        return userId;
-    },
-    update: function (userId, doc) {
-        return userId === doc.userId;
-    },
-    remove: function (userId, doc) {
-        return userId === doc.userId;
-    }
-});
-```
-
-Now you can set the permissions when you create the store :
-
-```js
-PhotosStore = new UploadFS.store.Local({
-    collection: Photos,
-    name: 'photos',
-    path: '/uploads/photos',
-    permissions: new UploadFS.StorePermissions({
-        insert: function (userId, doc) {
-            return userId;
-        },
-        update: function (userId, doc) {
-            return userId === doc.userId;
-        },
-        remove: function (userId, doc) {
-            return userId === doc.userId;
-        }
-    }
-});
-```
-
 ## Testing
 
 You can test the package by downloading and running [UFS-Example](https://github.com/jalik/ufs-example) which is simple demo of UploadFS.
@@ -810,3 +673,146 @@ Some helpers are available by default to help you work with files inside templat
     <video src="{{url}}" controls></video>
 {{/if}}
 ```
+
+## Changelog
+
+### Version 0.7.1
+- Adds default store permissions (`UploadFS.config.defaultStorePermissions`)
+- Fixes store permissions (#95)
+- Fixes HTTP `Range` result from stream (#94) : works with ufs-local and ufs-gridfs
+
+### Version 0.7.0_2
+- Adds support for `Range` request headers (to seek audio/video files)
+- Upgrades dependencies
+
+### Version 0.6.9
+- Adds ufs-mime.js file to handle mime related operations
+- Sets default file type to "application/octet-stream"
+- Detects automatically MIME type by checking file extension on upload (#84)
+- Fixes error thrown by UploadFS.Filter.checkContentType() when file type is empty
+- Fixes check(file, Object); into "ufsImportURL" method
+
+### Version 0.6.8
+
+- Passes full predicate in CRUD operations instead of just the ID
+- Removes file tokens when file is uploaded or removed
+- Adds the "originalUrl" attribute to files imported from URLs
+- Adds the "path" attribute to uploaded files corresponding to the relative URL of the file
+- Adds UploadFS.Store.prototype.getRelativeURL(path) to get the relative URL of a store
+- Adds UploadFS.Store.prototype.getFileRelativeURL(path) to get the relative URL of a file in a store
+- Adds UploadFS.addPathAttributeToFiles(where) to add the path attribute to existing files
+- Unblock the UploadFS.importFromURL()
+- Fixes file deletion during upload (stop uploading and removes temp file)
+
+You can upgrade existing documents to add the `path` attribute by calling the `UploadFS.addPathAttributeToFiles(where)`
+which will upgrade all collections linked to any UploadFS store, the `where` option is not required, default predicate is `{path: null}`.
+
+
+### Version 0.6.7
+
+- Allows to define stores on server only, use the store name directly as a reference on the client
+- Fixes an error caused by the use of an upsert in multi-server environment (mongo)
+
+### Version 0.6.5
+
+- Fixes 504 Gateway timeout error when file is not served by UploadFS
+
+### Version 0.6.4
+
+- Allows to set temp directory permissions
+
+### Version 0.6.3
+
+- Fixes iOS and Android issues
+- Adds CORS support
+
+### Version 0.6.1
+
+- Brings a huge improvement to large file transfer
+- Uses POST HTTP method instead of Meteor methods to upload files
+- Simplifies code for future versions
+
+#### Breaking changes
+
+##### UploadFS.readAsArrayBuffer() is DEPRECATED
+
+The method `UploadFS.readAsArrayBuffer()` is not available anymore, as uploads are using POST binary data, we don't need `ArrayBuffer`.
+
+```js
+UploadFS.selectFiles(function(ev){
+    UploadFS.readAsArrayBuffer(ev, function (data, file) {
+        let photo = {
+            name: file.name,
+            size: file.size,
+            type: file.type
+        };
+        let worker = new UploadFS.Uploader({
+            store: photosStore,
+            data: data,
+            file: photo
+        });
+        worker.start();
+    });
+});
+```
+
+The new code is smaller and easier to read :
+
+```js
+UploadFS.selectFiles(function(file){
+    let photo = {
+        name: file.name,
+        size: file.size,
+        type: file.type
+    };
+    let worker = new UploadFS.Uploader({
+        store: photosStore,
+        data: file,
+        file: photo
+    });
+    worker.start();
+});
+```
+
+##### Permissions are defined differently
+
+Before `v0.6.1` you would do like this :
+
+```js
+Photos.allow({
+    insert: function (userId, doc) {
+        return userId;
+    },
+    update: function (userId, doc) {
+        return userId === doc.userId;
+    },
+    remove: function (userId, doc) {
+        return userId === doc.userId;
+    }
+});
+```
+
+Now you can set the permissions when you create the store :
+
+```js
+PhotosStore = new UploadFS.store.Local({
+    collection: Photos,
+    name: 'photos',
+    path: '/uploads/photos',
+    permissions: new UploadFS.StorePermissions({
+        insert: function (userId, doc) {
+            return userId;
+        },
+        update: function (userId, doc) {
+            return userId === doc.userId;
+        },
+        remove: function (userId, doc) {
+            return userId === doc.userId;
+        }
+    }
+});
+```
+
+## LICENSE
+
+UploadFS is released under the [MIT License](http://www.opensource.org/licenses/MIT).
