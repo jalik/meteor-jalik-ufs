@@ -9,18 +9,6 @@ Also I'll be glad to receive donations, whatever you give it will be much apprec
 
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=SS78MUMW8AH4N)
 
-## Testing
-
-You can test the package by downloading and running [UFS-Example](https://github.com/jalik/ufs-example) which is simple demo of UploadFS.
-
-## Mobile Testing
-
-In order to test on mobile builds, `ROOT_URL` and `--mobile-server` must be set to your computer's local IP address and port:
-
-```bash
-export ROOT_URL=http://192.168.1.7:3000 && meteor run android-device --mobile-server=http://192.168.1.7:3000
-```
-
 ## Installation
 
 To install the package, execute this command in the root of your project :
@@ -35,7 +23,8 @@ meteor remove jalik:ufs
 
 ## Plugins
 
-As the package is modular, you can add support for custom stores and even create one, it's easy.
+In this documentation, I am using the `UploadFS.store.Local` store which saves files on the filesystem.
+But since the package is modular, you can install other stores or even create your own store.
 
 * [UploadFS.store.Local](https://github.com/jalik/jalik-ufs-local)
 * [UploadFS.store.GridFS](https://github.com/jalik/jalik-ufs-gridfs)
@@ -43,12 +32,17 @@ As the package is modular, you can add support for custom stores and even create
 * [UploadFS.store.S3](https://github.com/sebakerckhof/ufs-s3)
 * [AutoForm-UFS](https://github.com/DesignmanIO/meteor-autoform-ufs)
 
-## Introduction
+## Testing
 
-In file uploading, you basically have a client and a server, I haven't change those things.
-So on the client side, you create an uploader for each file transfer needed, while on the server side you only configure a store where the file will be saved.
+You can test the package by downloading and running [UFS-Example](https://github.com/jalik/ufs-example) which is simple demo of UploadFS.
 
-In this documentation, I am using the `UploadFS.store.Local` store which saves files on the filesystem.
+## Mobile Testing
+
+In order to test on mobile builds, `ROOT_URL` and `--mobile-server` must be set to your computer's local IP address and port:
+
+```bash
+export ROOT_URL=http://192.168.1.7:3000 && meteor run android-device --mobile-server=http://192.168.1.7:3000
+```
 
 ## Configuration
 
