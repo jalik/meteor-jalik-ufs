@@ -807,6 +807,6 @@ PhotosStore = new UploadFS.store.Local({
 });
 ```
 
-## LICENSE
+## License
 
 UploadFS is released under the [MIT License](http://www.opensource.org/licenses/MIT).
