@@ -87,7 +87,7 @@ UploadFS.Store = function (options) {
 
     // Set default permissions
     if (!(self.permissions instanceof UploadFS.StorePermissions)) {
-        // Uses user's default permissions or UFS default permissions
+        // Uses custom default permissions or UFS default permissions
         if (UploadFS.config.defaultStorePermissions instanceof UploadFS.StorePermissions) {
             self.permissions = UploadFS.config.defaultStorePermissions;
         } else {
