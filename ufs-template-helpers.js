@@ -23,28 +23,31 @@
  *
  */
 
-Package.describe({
-    name: "jalik:ufs",
-    version: "0.7.2",
-    author: "karl.stein.pro@gmail.com",
-    summary: "Base package for UploadFS",
-    homepage: "https://github.com/jalik/jalik-ufs",
-    git: "https://github.com/jalik/jalik-ufs.git",
-    documentation: "README.md"
+import {Template} from 'meteor/templating';
+
+
+let isMIME = function (type, mime) {
+    return typeof type === 'string'
+        && typeof mime === 'string'
+        && mime.indexOf(type + '/') === 0;
+};
+
+Template.registerHelper('isApplication', function (type) {
+    return isMIME('application', this.type || type);
 });
 
-Package.onUse(function (api) {
-    api.versionsFrom("1.4.1.1");
-    api.use("check");
-    api.use("ecmascript");
-    api.use("matb33:collection-hooks@0.8.1");
-    api.use("mongo");
-    api.use("templating");
-    api.use("underscore");
-    api.use("webapp", "server");
-    api.mainModule("ufs.js");
+Template.registerHelper('isAudio', function (type) {
+    return isMIME('audio', this.type || type);
 });
 
-Npm.depends({
-    mkdirp: "0.3.5"
+Template.registerHelper('isImage', function (type) {
+    return isMIME('image', this.type || type);
+});
+
+Template.registerHelper('isText', function (type) {
+    return isMIME('text', this.type || type);
+});
+
+Template.registerHelper('isVideo', function (type) {
+    return isMIME('video', this.type || type);
 });

@@ -49,15 +49,17 @@ export ROOT_URL=http://192.168.1.7:3000 && meteor run android-device --mobile-se
 You can access and modify settings via `UploadFS.config`.
 
 ```js
+import {UploadFS} from 'meteor/jalik:ufs';
+
 // Set default permissions for all stores (you can later overwrite the default permissions on each store)
 UploadFS.config.defaultStorePermissions = new UploadFS.StorePermissions({
-    insert: function (userId, doc) {
+    insert(userId, doc) {
         return userId;
     },
-    update: function (userId, doc) {
+    update(userId, doc) {
         return userId === doc.userId;
     },
-    remove: function (userId, doc) {
+    remove(userId, doc) {
         return userId === doc.userId;
     }
 });
@@ -95,16 +97,17 @@ UploadFS.config.tmpDirPermissions = '0700';
 A store is the place where your files are saved, it could be your local hard drive or a distant cloud hosting solution.
 Let say you have a `Photos` collection which is used to save the files info.
 
-```js
-Photos = new Mongo.Collection('photos');
-```
-
-What you need is to create the store that will will contains the data of the `Photos` collection.
+You need to create the store that will will contains the data of the `Photos` collection.
 Note that the `name` of the store must be unique. In the following example we are using a local filesystem store.
 Each store has its own options, so refer to the store documentation to see available options.
 
 ```js
-PhotosStore = new UploadFS.store.Local({
+import {Mongo} from 'meteor/mongo';
+import {UploadFS} from 'meteor/jalik:ufs';
+
+const Photos = new Mongo.Collection('photos');
+
+const PhotoStore = new UploadFS.store.Local({
     collection: Photos,
     name: 'photos',
     path: '/uploads/photos'
@@ -118,14 +121,19 @@ Filter is tested before inserting a file in the collection.
 If the file does not match the filter, it won't be inserted and will not be uploaded.
 
 ```js
-PhotosStore = new UploadFS.store.Local({
+import {Mongo} from 'meteor/mongo';
+import {UploadFS} from 'meteor/jalik:ufs';
+
+const Photos = new Mongo.Collection('photos');
+
+const PhotoStore = new UploadFS.store.Local({
     collection: Photos,
     name: 'photos',
     path: '/uploads/photos',
     // Apply a filter to restrict file upload
     filter: new UploadFS.Filter({
         minSize: 1,
-        maxSize: 1024 * 1000 // 1MB,
+        maxSize: 1024 * 1000, // 1MB,
         contentTypes: ['image/*'],
         extensions: ['jpg', 'png']
     })
@@ -135,7 +143,12 @@ PhotosStore = new UploadFS.store.Local({
 If you need a more advanced filter, you can pass your own method using the `onCheck` option.
 
 ```js
-PhotosStore = new UploadFS.store.Local({
+import {Mongo} from 'meteor/mongo';
+import {UploadFS} from 'meteor/jalik:ufs';
+
+const Photos = new Mongo.Collection('photos');
+
+const PhotoStore = new UploadFS.store.Local({
     collection: Photos,
     name: 'photos',
     path: '/uploads/photos',
@@ -156,19 +169,26 @@ PhotosStore = new UploadFS.store.Local({
 If you need to modify the file before saving it to the store, you can to use the `transformWrite` option.
 If you want to modify the file before returning it (for display), then use the `transformRead` option.
 A common use is to resize/compress images to optimize the uploaded files.
-**NOTE:** Install the required libs (GM, ImageMagick, GraphicsMagicK or whatever you are using), these libs are not embedded in UploadFS.
+
+**NOTE: Do not forget to install the required libs on your system with NPM (GM, ImageMagick, GraphicsMagicK or whatever you are using).**
 
 ```js
-PhotosStore = new UploadFS.store.Local({
+import gm from 'gm';
+import {Mongo} from 'meteor/mongo';
+import {UploadFS} from 'meteor/jalik:ufs';
+
+const Photos = new Mongo.Collection('photos');
+
+const PhotoStore = new UploadFS.store.Local({
     collection: Photos,
     name: 'photos',
     path: '/uploads/photos',
     // Transform file when reading
-    transformRead: function (from, to, fileId, file, request) {
+    transformRead(from, to, fileId, file, request) {
         from.pipe(to); // this returns the raw data
-    }
+    },
     // Transform file when writing
-    transformWrite: function (from, to, fileId, file) {
+    transformWrite(from, to, fileId, file) {
         let gm = Npm.require('gm');
         if (gm) {
             gm(from)
@@ -190,11 +210,15 @@ You can copy files to other stores on the fly, it could be for backup or just to
 To copy files that are saved in a store, use the `copyTo` option, you just need to pass an array of stores to copy to.
 
 ```js
-Files = new Mongo.Collection('files');
-Thumbnails128 = new Mongo.Collection('thumbnails-128');
-Thumbnails64 = new Mongo.Collection('thumbnails-64');
+import gm from 'gm';
+import {Mongo} from 'meteor/mongo';
+import {UploadFS} from 'meteor/jalik:ufs';
 
-Thumbnail128Store = new UploadFS.store.Local({
+const Files = new Mongo.Collection('files');
+const Thumbnails128 = new Mongo.Collection('thumbnails-128');
+const Thumbnails64 = new Mongo.Collection('thumbnails-64');
+
+const Thumbnail128Store = new UploadFS.store.Local({
     collection: Thumbnails128,
     name: 'thumbnails-128',
     path: '/uploads/thumbsnails/128x128',
@@ -213,7 +237,7 @@ Thumbnail128Store = new UploadFS.store.Local({
     }
 });
 
-Thumbnail64Store = new UploadFS.store.Local({
+const Thumbnail64Store = new UploadFS.store.Local({
     collection: Thumbnails64,
     name: 'thumbnails-64',
     path: '/uploads/thumbsnails/64x64',
@@ -232,7 +256,7 @@ Thumbnail64Store = new UploadFS.store.Local({
     }
 });
 
-FileStore = new UploadFS.store.Local({
+const FileStore = new UploadFS.store.Local({
     collection: Files,
     name: 'files',
     path: '/uploads/files',
@@ -246,15 +270,25 @@ FileStore = new UploadFS.store.Local({
 You can also manually copy a file to another store by using the `copy()` method.
 
 ```js
-Backups = new Mongo.Collection('backups');
+import {Mongo} from 'meteor/mongo';
+import {UploadFS} from 'meteor/jalik:ufs';
 
-BackupStore = new UploadFS.store.Local({
+const Backups = new Mongo.Collection('backups');
+const Photos = new Mongo.Collection('photos');
+
+const PhotoStore = new UploadFS.store.Local({
+    collection: Photos,
+    name: 'photos',
+    path: '/uploads/photos'
+});
+
+const BackupStore = new UploadFS.store.Local({
     collection: Backups,
     name: 'backups',
     path: '/backups'
 });
 
-PhotosStore.copy(fileId, BackupStore, function(err, copyId, copyFile) {
+PhotoStore.copy(fileId, BackupStore, function(err, copyId, copyFile) {
     !err && console.log(fileId + ' has been copied as ' + copyId);
 });
 ```
@@ -300,51 +334,58 @@ By default, there is no restriction (except the filter) on insert, remove and up
 **The permission system has changed since `v0.6.1`, you must define permissions like this :**
 
 ```js
-PhotosStore.setPermissions(new UploadFS.StorePermissions({
-    insert: function (userId, doc) {
+PhotoStore.setPermissions(new UploadFS.StorePermissions({
+    insert(userId, doc) {
         return userId;
     },
-    update: function (userId, doc) {
+    update(userId, doc) {
         return userId === doc.userId;
     },
-    remove: function (userId, doc) {
+    remove(userId, doc) {
         return userId === doc.userId;
     }
-});
+}));
 ```
 
 or when you create the store :
 
 ```js
-PhotosStore = new UploadFS.store.Local({
+import {Mongo} from 'meteor/mongo';
+import {UploadFS} from 'meteor/jalik:ufs';
+
+const Photos = new Mongo.Collection('photos');
+
+const PhotoStore = new UploadFS.store.Local({
     collection: Photos,
     name: 'photos',
     path: '/uploads/photos',
     permissions: new UploadFS.StorePermissions({
-        insert: function (userId, doc) {
+        insert(userId, doc) {
             return userId;
         },
-        update: function (userId, doc) {
+        update(userId, doc) {
             return userId === doc.userId;
         },
-        remove: function (userId, doc) {
+        remove(userId, doc) {
             return userId === doc.userId;
         }
-    }
+    })
 });
 ```
 
 or you can set default permissions for all stores (since v0.7.1) :
 
 ```js
+import {UploadFS} from 'meteor/jalik:ufs';
+
 UploadFS.config.defaultStorePermissions = new UploadFS.StorePermissions({
-    insert: function (userId, doc) {
+    insert(userId, doc) {
         return userId;
     },
-    update: function (userId, doc) {
+    update(userId, doc) {
         return userId === doc.userId;
     },
-    remove: function (userId, doc) {
+    remove(userId, doc) {
         return userId === doc.userId;
     }
 });
@@ -366,11 +407,16 @@ This is done by defining the `onRead()` method on the store.
 ```
 
 ```js
-PhotosStore = new UploadFS.store.Local({
+import {Mongo} from 'meteor/mongo';
+import {UploadFS} from 'meteor/jalik:ufs';
+
+const Photos = new Mongo.Collection('photos');
+
+const PhotoStore = new UploadFS.store.Local({
     collection: Photos,
     name: 'photos',
     path: '/uploads/photos',
-    onRead: function (fileId, file, request, response) {
+    onRead(fileId, file, request, response) {
         // Allow file access if not private or if token is correct
         if (file.isPublic || request.query.token === file.token) {
             return true;
@@ -387,24 +433,29 @@ PhotosStore = new UploadFS.store.Local({
 Some events are triggered to allow you to do something at the right moment on server side.
 
 ```js
-PhotosStore = new UploadFS.store.Local({
+import {Mongo} from 'meteor/mongo';
+import {UploadFS} from 'meteor/jalik:ufs';
+
+const Photos = new Mongo.Collection('photos');
+
+const PhotoStore = new UploadFS.store.Local({
     collection: Photos,
     name: 'photos',
     path: '/uploads/photos',
     // Called when file has been uploaded
-    onFinishUpload: function (file) {
+    onFinishUpload(file) {
         console.log(file.name + ' has been uploaded');
     },
     // Called when a copy error happened
-    onCopyError: function (err, fileId, file) {
+    onCopyError(err, fileId, file) {
         console.error('Cannot create copy ' + file.name);
-    }
+    },
     // Called when a read error happened
-    onReadError: function (err, fileId, file) {
+    onReadError(err, fileId, file) {
         console.error('Cannot read ' + file.name);
-    }
+    },
     // Called when a write error happened
-    onWriteError: function (err, fileId, file) {
+    onWriteError(err, fileId, file) {
         console.error('Cannot write ' + file.name);
     }
 });
@@ -415,11 +466,23 @@ PhotosStore = new UploadFS.store.Local({
 If you need to get a file directly from a store, do like below :
 
 ```js
+import {Meteor} from 'meteor/meteor';
+import {Mongo} from 'meteor/mongo';
+import {UploadFS} from 'meteor/jalik:ufs';
+
+const Photos = new Mongo.Collection('photos');
+
+const PhotoStore = new UploadFS.store.Local({
+    collection: Photos,
+    name: 'photos',
+    path: '/uploads/photos'
+});
+
 // Get the file from database
 let file = Photos.findOne({_id: fileId});
 
 // Get the file stream from the store
-let readStream = PhotosStore.getReadStream(fileId, file);
+let readStream = PhotoStore.getReadStream(fileId, file);
 
 readStream.on('error', Meteor.bindEnvironment(function (error) {
     console.error(err);
@@ -464,8 +527,20 @@ Here is the template to upload one or more files :
 And there the code to upload the selected files :
 
 ```js
+import {Mongo} from 'meteor/mongo';
+import {Template} from 'meteor/templating';
+import {UploadFS} from 'meteor/jalik:ufs';
+
+const Photos = new Mongo.Collection('photos');
+
+const PhotoStore = new UploadFS.store.Local({
+    collection: Photos,
+    name: 'photos',
+    path: '/uploads/photos'
+});
+
 Template.upload.events({
-    'click button[name=upload]': function (ev) {
+    'click button[name=upload]'(ev) {
         let self = this;
 
         UploadFS.selectFiles(function (file) {
@@ -486,7 +561,7 @@ Template.upload.events({
             let uploader = new UploadFS.Uploader({
                 // This is where the uploader will save the file
                 // since v0.6.7, you can pass the store instance or the store name directly
-                store: PhotosStore || 'photos',
+                store: PhotoStore || 'photos',
                 // Optimize speed transfer by increasing/decreasing chunk size automatically
                 adaptive: true,
                 // Define the upload capacity (if upload speed is 1MB/s, then it will try to maintain upload at 80%, so 800KB/s)
@@ -503,25 +578,25 @@ Template.upload.events({
                 // The document to save in the collection
                 file: photo,
                 // The error callback
-                onError: function (err) {
+                onError(err) {
                     console.error(err);
                 },
-                onAbort: function (file) {
+                onAbort(file) {
                     console.log(file.name + ' upload has been aborted');
                 },
-                onComplete: function (file) {
+                onComplete(file) {
                     console.log(file.name + ' has been uploaded');
                 },
-                onCreate: function (file) {
+                onCreate(file) {
                     console.log(file.name + ' has been created with ID ' + file._id);
                 },
-                onProgress: function (file, progress) {
+                onProgress(file, progress) {
                     console.log(file.name + ' ' + (progress*100) + '% uploaded');
-                }
-                onStart: function (file) {
+                },
+                onStart(file) {
                     console.log(file.name + ' started');
                 },
-                onStop: function (file) {
+                onStop(file) {
                     console.log(file.name + ' stopped');
                 },
             });
@@ -553,13 +628,24 @@ During uploading you can get some kind of useful information like the following 
 You can import a file from an absolute URL by using one of the following methods :
 
 ```js
+import {Mongo} from 'meteor/mongo';
+import {UploadFS} from 'meteor/jalik:ufs';
+
+const Photos = new Mongo.Collection('photos');
+
+const PhotoStore = new UploadFS.store.Local({
+    collection: Photos,
+    name: 'photos',
+    path: '/uploads/photos'
+});
+
 let url = 'https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png';
 let attr = { name: 'Google Logo', description: 'Logo from www.google.com' };
 
 // You can import directly from the store instance
-PhotosStore.importFromURL(url, attr, function (err, file) {
+PhotoStore.importFromURL(url, attr, function (err, file) {
     if (err) {
-        displayError(err);
+        console.error(err.message);
     } else {
         console.log('Photo saved :', file);
     }
@@ -574,7 +660,12 @@ UploadFS.importFromURL(url, attr, storeName, callback);
 **NOTE: since v0.6.8, all imported files have the `originalUrl` attribute, this allows to know where the file comes from and also to do some checks before inserting the file with the `StorePermissions.insert`.**
 
 ```js
-PhotosStore = new UploadFS.Store.Local({
+import {Mongo} from 'meteor/mongo';
+import {UploadFS} from 'meteor/jalik:ufs';
+
+const Photos = new Mongo.Collection('photos');
+
+const PhotoStore = new UploadFS.Store.Local({
     name: 'photos',
     collection: Photos,
     permissions: new UploadFS.StorePermissions({
@@ -597,6 +688,8 @@ So when uploading a file, if the `file.type` is not set, UploadFS will check in 
 you can also add your own MIME types.
 
 ```js
+import {UploadFS} from 'meteor/jalik:ufs';
+
 // Adds KML and KMZ MIME types detection
 UploadFS.addMimeType('kml', 'application/vnd.google-earth.kml+xml');
 UploadFS.addMimeType('kmz', 'application/vnd.google-earth.kmz');
@@ -604,6 +697,8 @@ UploadFS.addMimeType('kmz', 'application/vnd.google-earth.kmz');
 
 If you want to get all MIME types :
 ```js
+import {UploadFS} from 'meteor/jalik:ufs';
+
 const MIME = UploadFS.getMimeTypes();
 ```
 
@@ -670,8 +765,13 @@ Some helpers are available by default to help you work with files inside templat
 
 ## Changelog
 
+### Version 0.7.2
+- Adds `Store.validateFile(file)` to validate a file before writing to the store
+- Uses ES6 class syntax
+- Uses ES6 import syntax
+
 ### Version 0.7.1
-- Adds default store permissions (`UploadFS.config.defaultStorePermissions`)
+- Adds default store permissions in `UploadFS.config.defaultStorePermissions`
 - Fixes store permissions (#95)
 - Fixes HTTP `Range` result from stream (#94) : works with ufs-local and ufs-gridfs
 
@@ -733,6 +833,8 @@ which will upgrade all collections linked to any UploadFS store, the `where` opt
 The method `UploadFS.readAsArrayBuffer()` is not available anymore, as uploads are using POST binary data, we don't need `ArrayBuffer`.
 
 ```js
+import {UploadFS} from 'meteor/jalik:ufs';
+
 UploadFS.selectFiles(function(ev){
     UploadFS.readAsArrayBuffer(ev, function (data, file) {
         let photo = {
@@ -741,7 +843,7 @@ UploadFS.selectFiles(function(ev){
             type: file.type
         };
         let worker = new UploadFS.Uploader({
-            store: photosStore,
+            store: PhotoStore,
             data: data,
             file: photo
         });
@@ -753,6 +855,8 @@ UploadFS.selectFiles(function(ev){
 The new code is smaller and easier to read :
 
 ```js
+import {UploadFS} from 'meteor/jalik:ufs';
+
 UploadFS.selectFiles(function(file){
     let photo = {
         name: file.name,
@@ -760,7 +864,7 @@ UploadFS.selectFiles(function(file){
         type: file.type
     };
     let worker = new UploadFS.Uploader({
-        store: photosStore,
+        store: PhotoStore,
         data: file,
         file: photo
     });
@@ -774,13 +878,13 @@ Before `v0.6.1` you would do like this :
 
 ```js
 Photos.allow({
-    insert: function (userId, doc) {
+    insert(userId, doc) {
         return userId;
     },
-    update: function (userId, doc) {
+    update(userId, doc) {
         return userId === doc.userId;
     },
-    remove: function (userId, doc) {
+    remove(userId, doc) {
         return userId === doc.userId;
     }
 });
@@ -789,21 +893,21 @@ Photos.allow({
 Now you can set the permissions when you create the store :
 
 ```js
-PhotosStore = new UploadFS.store.Local({
+PhotoStore = new UploadFS.store.Local({
     collection: Photos,
     name: 'photos',
     path: '/uploads/photos',
     permissions: new UploadFS.StorePermissions({
-        insert: function (userId, doc) {
+        insert(userId, doc) {
             return userId;
         },
-        update: function (userId, doc) {
+        update(userId, doc) {
             return userId === doc.userId;
         },
-        remove: function (userId, doc) {
+        remove(userId, doc) {
             return userId === doc.userId;
         }
-    }
+    })
 });
 ```
 

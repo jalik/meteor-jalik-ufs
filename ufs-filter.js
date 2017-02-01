@@ -1,134 +1,179 @@
+/*
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2017 Karl STEIN
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ */
+
 import {_} from 'meteor/underscore';
+import {Meteor} from 'meteor/meteor';
+
 
 /**
  * File filter
- * @param options
- * @constructor
  */
-UploadFS.Filter = function (options) {
-    let self = this;
+export class Filter {
 
-    // Default options
-    options = _.extend({
-        contentTypes: null,
-        extensions: null,
-        minSize: 1,
-        maxSize: 0,
-        onCheck: null
-    }, options);
+    constructor(options) {
+        // Default options
+        options = _.extend({
+            contentTypes: null,
+            extensions: null,
+            minSize: 1,
+            maxSize: 0,
+            onCheck: null
+        }, options);
 
-    // Check options
-    if (options.contentTypes && !(options.contentTypes instanceof Array)) {
-        throw new TypeError('contentTypes is not an Array');
-    }
-    if (options.extensions && !(options.extensions instanceof Array)) {
-        throw new TypeError('extensions is not an Array');
-    }
-    if (typeof options.minSize !== 'number') {
-        throw new TypeError('minSize is not a number');
-    }
-    if (typeof options.maxSize !== 'number') {
-        throw new TypeError('maxSize is not a number');
-    }
-    if (options.onCheck && typeof options.onCheck !== 'function') {
-        throw new TypeError('onCheck is not a function');
-    }
+        // Check options
+        if (options.contentTypes && !(options.contentTypes instanceof Array)) {
+            throw new TypeError("Filter: contentTypes is not an Array");
+        }
+        if (options.extensions && !(options.extensions instanceof Array)) {
+            throw new TypeError("Filter: extensions is not an Array");
+        }
+        if (typeof options.minSize !== "number") {
+            throw new TypeError("Filter: minSize is not a number");
+        }
+        if (typeof options.maxSize !== "number") {
+            throw new TypeError("Filter: maxSize is not a number");
+        }
+        if (options.onCheck && typeof options.onCheck !== "function") {
+            throw new TypeError("Filter: onCheck is not a function");
+        }
 
-    // Private attributes
-    let contentTypes = options.contentTypes;
-    let extensions = options.extensions;
-    let onCheck = options.onCheck;
-    let maxSize = parseInt(options.maxSize);
-    let minSize = parseInt(options.minSize);
+        // Private attributes
+        let contentTypes = options.contentTypes;
+        let extensions = options.extensions;
+        let maxSize = parseInt(options.maxSize);
+        let minSize = parseInt(options.minSize);
+
+        this.onCheck = options.onCheck;
+
+        /**
+         * Returns the allowed content types
+         * @return {Array}
+         */
+        this.getContentTypes = () => {
+            return contentTypes;
+        };
+
+        /**
+         * Returns the allowed extensions
+         * @return {Array}
+         */
+        this.getExtensions = () => {
+            return extensions;
+        };
+
+        /**
+         * Returns the maximum file size
+         * @return {Number}
+         */
+        this.getMaxSize = () => {
+            return maxSize;
+        };
+
+        /**
+         * Returns the minimum file size
+         * @return {Number}
+         */
+        this.getMinSize = () => {
+            return minSize;
+        };
+    }
 
     /**
      * Checks the file
      * @param file
      */
-    self.check = (file) => {
-        // Check size
-        if (file.size <= 0 || file.size < self.getMinSize()) {
-            throw new Meteor.Error('file-too-small', 'File is too small (min =' + self.getMinSize() + ')');
+    check(file) {
+        if (typeof file !== "object" || !file) {
+            throw new Meteor.Error('invalid-file', "File is not valid");
         }
-        if (self.getMaxSize() > 0 && file.size > self.getMaxSize()) {
-            throw new Meteor.Error('file-too-large', 'File is too large (max = ' + self.getMaxSize() + ')');
+        // Check size
+        if (file.size <= 0 || file.size < this.getMinSize()) {
+            throw new Meteor.Error('file-too-small', `File size is too small (min = ${this.getMinSize()})`);
+        }
+        if (this.getMaxSize() > 0 && file.size > this.getMaxSize()) {
+            throw new Meteor.Error('file-too-large', `File size is too large (max = ${this.getMaxSize()})`);
         }
         // Check extension
-        if (self.getExtensions() && !_.contains(self.getExtensions(), file.extension)) {
-            throw new Meteor.Error('invalid-file-extension', 'File extension is not accepted');
+        if (this.getExtensions() && !_.contains(this.getExtensions(), file.extension)) {
+            throw new Meteor.Error('invalid-file-extension', `File extension "${file.extension}" is not accepted`);
         }
         // Check content type
-        if (self.getContentTypes() && !checkContentType(file.type, self.getContentTypes())) {
-            throw new Meteor.Error('invalid-file-type', 'File type is not accepted');
+        if (this.getContentTypes() && !this.isContentTypeInList(file.type, this.getContentTypes())) {
+            throw new Meteor.Error('invalid-file-type', `File type "${file.type}" is not accepted`);
         }
         // Apply custom check
-        if (typeof onCheck === 'function' && !onCheck.call(self, file)) {
-            throw new Meteor.Error('invalid-file', 'File does not match filter');
+        if (typeof this.onCheck === 'function' && !this.onCheck(file)) {
+            throw new Meteor.Error('invalid-file', "File does not match filter");
         }
-    };
+    }
 
     /**
-     * Returns the allowed content types
-     * @return {Array}
+     * Checks if content type is in the given list
+     * @param type
+     * @param list
+     * @return {boolean}
      */
-    self.getContentTypes = () => {
-        return contentTypes;
-    };
+    isContentTypeInList(type, list) {
+        if (typeof type === 'string' && list instanceof Array) {
+            if (_.contains(list, type)) {
+                return true;
+            } else {
+                let wildCardGlob = '/*';
+                let wildcards = _.filter(list, (item) => {
+                    return item.indexOf(wildCardGlob) > 0;
+                });
 
-    /**
-     * Returns the allowed extensions
-     * @return {Array}
-     */
-    self.getExtensions = () => {
-        return extensions;
-    };
-
-    /**
-     * Returns the maximum file size
-     * @return {Number}
-     */
-    self.getMaxSize = () => {
-        return maxSize;
-    };
-
-    /**
-     * Returns the minimum file size
-     * @return {Number}
-     */
-    self.getMinSize = () => {
-        return minSize;
-    };
+                if (_.contains(wildcards, type.replace(/(\/.*)$/, wildCardGlob))) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 
     /**
      * Checks if the file matches filter
      * @param file
      * @return {boolean}
      */
-    self.isValid = (file) => {
+    isValid(file) {
         let result = true;
         try {
-            self.check(file);
+            this.check(file);
         } catch (err) {
             result = false;
         }
         return result;
-    };
-};
-
-function checkContentType(type, list) {
-    if (type) {
-        if (_.contains(list, type)) {
-            return true;
-        } else {
-            let wildCardGlob = '/*';
-            let wildcards = _.filter(list, (item) => {
-                return item.indexOf(wildCardGlob) > 0;
-            });
-
-            if (_.contains(wildcards, type.replace(/(\/.*)$/, wildCardGlob))) {
-                return true;
-            }
-        }
     }
-    return false;
+
+    /**
+     * Executes custom checks
+     * @param file
+     * @return {boolean}
+     */
+    onCheck(file) {
+        return true;
+    }
 }
