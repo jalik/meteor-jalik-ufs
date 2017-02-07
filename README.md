@@ -221,7 +221,7 @@ const Thumbnails64 = new Mongo.Collection('thumbnails-64');
 const Thumbnail128Store = new UploadFS.store.Local({
     collection: Thumbnails128,
     name: 'thumbnails-128',
-    path: '/uploads/thumbsnails/128x128',
+    path: '/uploads/thumbnails/128x128',
     transformWrite: function(readStream, writeStream, fileId, file) {
         let gm = Npm.require('gm');
         if (gm) {
@@ -240,7 +240,7 @@ const Thumbnail128Store = new UploadFS.store.Local({
 const Thumbnail64Store = new UploadFS.store.Local({
     collection: Thumbnails64,
     name: 'thumbnails-64',
-    path: '/uploads/thumbsnails/64x64',
+    path: '/uploads/thumbnails/64x64',
     transformWrite: function(readStream, writeStream, fileId, file) {
         let gm = Npm.require('gm');
         if (gm) {
@@ -324,6 +324,45 @@ Thumbnails128Store.onFinishUpload = function(file) {
 Thumbnails64Store.onFinishUpload = function(file) {
     Files.update({_id: file.originalId}, {$set: {thumb64Url: file.url}});
 };
+```
+
+## Validating files (since v0.7.2) (server)
+
+Before writing file to a store, you can validate the uploaded file, like checking with `gm` if the uploaded file is really an image.
+
+```js
+import gm from 'gm';
+import {Mongo} from 'meteor/mongo';
+import {UploadFS} from 'meteor/jalik:ufs';
+
+const Images = new Mongo.Collection('files');
+
+const ImageStore = new UploadFS.store.Local({
+    collection: Images,
+    name: 'images',
+    path: '/uploads/images',
+    // Make sure that pictures are indeed images
+    transformWrite: function (from, to, fileId, file) {
+        let stream = null;
+        // identify will return an error if the content of the file is not an image.
+        // If it is an image, then details on the image file will be in data.
+        const identify = function(err, data) {
+            if (err) {
+                // Causes an exception and triggers the cleanup process by sending
+                // an error event to the 'to' stream
+                to.emit('error', new Meteor.Error('invalid-file', 'The file is not an image'));
+            } else {
+                // Save the uploaded picture, after cleaning it.
+                gm(stream)
+                .autoOrient()
+                .noProfile()
+                .stream()
+                .pipe(to);
+            }
+        };
+        stream = gm(from).identify(identify).stream();
+    }
+});
 ```
 
 ## Setting permissions (server)
@@ -655,9 +694,9 @@ PhotoStore.importFromURL(url, attr, function (err, file) {
 UploadFS.importFromURL(url, attr, storeName, callback);
 ```
 
-**WARNING: File type detection is based on the file name in the URL so if the URL is obfuscated it won't work (http://www.hello.com/images/123456 won't work, http://www.hello.com/images/123456.png will work).**
+**WARNING:** File type detection is based on the file name in the URL so if the URL is obfuscated it won't work (http://www.hello.com/images/123456 won't work, http://www.hello.com/images/123456.png will work).
 
-**NOTE: since v0.6.8, all imported files have the `originalUrl` attribute, this allows to know where the file comes from and also to do some checks before inserting the file with the `StorePermissions.insert`.**
+**NOTE:** since v0.6.8, all imported files have the `originalUrl` attribute, this allows to know where the file comes from and also to do some checks before inserting the file with the `StorePermissions.insert`.
 
 ```js
 import {Mongo} from 'meteor/mongo';
@@ -741,7 +780,7 @@ Template.photos.helpers({
 });
 ```
 
-## Using template helpers (client)
+## Using template helpers (Blaze)
 
 Some helpers are available by default to help you work with files inside templates.
 
@@ -775,6 +814,10 @@ Some helpers are available by default to help you work with files inside templat
 - Adds method `Store.validate(file)`
 - Uses ES6 class syntax
 - Uses ES6 import syntax
+
+**NOTE:** To add `etag` attribute to existing files, call once the method `UploadFS.addETagAttributeToFiles({etag: null});`
+
+**NOTE 2:** If your `ROOT_URL` env var is pointing to a subfolder like http://localhost/myapp, please call this method once `UploadFS.addPathAttributeToFiles({});`
 
 ### Version 0.7.1
 - Adds default store permissions in `UploadFS.config.defaultStorePermissions`
