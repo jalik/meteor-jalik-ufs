@@ -556,7 +556,11 @@ export class Store {
      * @param path
      */
     getRelativeURL(path) {
-        return [UploadFS.config.storesPath, this.getName(), path].join('/').replace(/\/$/, '');
+        const rootUrl = Meteor.absoluteUrl().replace(/\/+$/, '');
+        const rootPath = rootUrl.replace(/^[a-z]+:\/\/[^/]+\/*/gi, '');
+        const storeName = this.getName();
+        path = String(path).replace(/\/$/, '').trim();
+        return encodeURI(`${rootPath}/${UploadFS.config.storesPath}/${storeName}/${path}`);
     }
 
     /**
@@ -564,7 +568,10 @@ export class Store {
      * @param path
      */
     getURL(path) {
-        return Meteor.absoluteUrl(this.getRelativeURL(path), {secure: UploadFS.config.https});
+        const rootUrl = Meteor.absoluteUrl().replace(/\/+$/, '');
+        const storeName = this.getName();
+        path = String(path).replace(/\/$/, '').trim();
+        return encodeURI(`${rootUrl}/${UploadFS.config.storesPath}/${storeName}/${path}`);
     }
 
     /**
