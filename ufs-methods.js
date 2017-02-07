@@ -119,7 +119,7 @@ if (Meteor.isServer) {
         /**
          * Creates the file and returns the file upload token
          * @param file
-         * @returns {{fileId: string, token: *, url}}
+         * @return {{fileId: string, token: *, url: *}}
          */
         ufsCreate(file) {
             check(file, Object);
@@ -215,7 +215,7 @@ if (Meteor.isServer) {
                 throw new Meteor.Error('invalid-file', "The file is not valid");
             }
             // Check store
-            let store = UploadFS.getStore(storeName);
+            const store = UploadFS.getStore(storeName);
             if (!store) {
                 throw new Meteor.Error('invalid-store', 'The store does not exist');
             }
@@ -290,12 +290,12 @@ if (Meteor.isServer) {
             check(token, String);
 
             // Check store
-            let store = UploadFS.getStore(storeName);
+            const store = UploadFS.getStore(storeName);
             if (!store) {
                 throw new Meteor.Error('invalid-store', "Store not found");
             }
             // Check file
-            let file = store.getCollection().find({_id: fileId}, {fields: {userId: 1}});
+            const file = store.getCollection().find({_id: fileId}, {fields: {userId: 1}});
             if (!file) {
                 throw new Meteor.Error('invalid-file', "File not found");
             }

@@ -27,6 +27,7 @@ import {_} from 'meteor/underscore';
 import {Meteor} from 'meteor/meteor';
 import {Mongo} from 'meteor/mongo';
 import {MIME} from './ufs-mime';
+import {Random} from 'meteor/random';
 import {Tokens} from './ufs-tokens';
 
 
@@ -45,6 +46,21 @@ export const UploadFS = {
     tokens: Tokens,
 
     /**
+     * Adds the "etag" attribute to files
+     * @param where
+     */
+    addETagAttributeToFiles(where) {
+        _.each(this.getStores(), (store) => {
+            const files = store.getCollection();
+
+            // By default update only files with no path set
+            files.find(where || {etag: null}, {fields: {_id: 1}}).forEach((file) => {
+                files.update(file._id, {$set: {etag: this.generateEtag()}});
+            });
+        });
+    },
+
+    /**
      * Adds the MIME type for an extension
      * @param extension
      * @param mime
@@ -54,19 +70,26 @@ export const UploadFS = {
     },
 
     /**
-     * Adds the path attribute to files
+     * Adds the "path" attribute to files
      * @param where
      */
     addPathAttributeToFiles(where) {
-        _.each(UploadFS.getStores(), (store) => {
-            let files = store.getCollection();
+        _.each(this.getStores(), (store) => {
+            const files = store.getCollection();
 
             // By default update only files with no path set
             files.find(where || {path: null}, {fields: {_id: 1}}).forEach((file) => {
-                let path = store.getFileRelativeURL(file._id);
-                files.update({_id: file._id}, {$set: {path: path}});
+                files.update(file._id, {$set: {path: store.getFileRelativeURL(file._id)}});
             });
         });
+    },
+
+    /**
+     * Generates a unique ETag
+     * @return {string}
+     */
+    generateEtag() {
+        return Random.id();
     },
 
     /**

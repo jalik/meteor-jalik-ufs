@@ -50,11 +50,11 @@ export class Store {
             onFinishUpload: null,
             onRead: null,
             onReadError: null,
+            onValidate: this.onValidate,
             onWriteError: null,
             permissions: null,
             transformRead: null,
-            transformWrite: null,
-            validateFile: this.validateFile
+            transformWrite: null
         }, options);
 
         // Check instance
@@ -99,8 +99,8 @@ export class Store {
         if (options.transformWrite && typeof options.transformWrite !== 'function') {
             throw new TypeError('Store: transformWrite is not a function');
         }
-        if (options.validateFile && typeof options.validateFile !== 'function') {
-            throw new TypeError('Store: validateFile is not a function');
+        if (options.onValidate && typeof options.onValidate !== 'function') {
+            throw new TypeError('Store: onValidate is not a function');
         }
 
         // Public attributes
@@ -110,7 +110,7 @@ export class Store {
         self.onReadError = options.onReadError || self.onReadError;
         self.onWriteError = options.onWriteError || self.onWriteError;
         self.permissions = options.permissions;
-        self.validateFile = options.validateFile;
+        self.onValidate = options.onValidate;
 
         // Private attributes
         let collection = options.collection;
@@ -347,6 +347,7 @@ export class Store {
                     readStream.on('end', Meteor.bindEnvironment(function () {
                         // Set file attribute
                         file.complete = true;
+                        file.etag = UploadFS.generateEtag();
                         file.path = self.getFileRelativeURL(fileId);
                         file.progress = 1;
                         file.size = size;
@@ -360,6 +361,7 @@ export class Store {
                         collection.direct.update({_id: fileId}, {
                             $set: {
                                 complete: file.complete,
+                                etag: file.etag,
                                 path: file.path,
                                 progress: file.progress,
                                 size: file.size,
@@ -536,8 +538,8 @@ export class Store {
      * @param fileId
      */
     getFileRelativeURL(fileId) {
-        let file = this.getCollection().findOne({_id: fileId}, {fields: {name: 1}});
-        return file && this.getRelativeURL(fileId + '/' + encodeURIComponent(file.name));
+        let file = this.getCollection().findOne(fileId, {fields: {name: 1}});
+        return file ? this.getRelativeURL(`${fileId}/${file.name}`) : null;
     }
 
     /**
@@ -545,8 +547,8 @@ export class Store {
      * @param fileId
      */
     getFileURL(fileId) {
-        let file = this.getCollection().findOne({_id: fileId}, {fields: {name: 1}});
-        return file && this.getURL(fileId + '/' + encodeURIComponent(file.name));
+        let file = this.getCollection().findOne(fileId, {fields: {name: 1}});
+        return file ? this.getURL(`${fileId}/${file.name}`) : null;
     }
 
     /**
@@ -579,6 +581,16 @@ export class Store {
      * Validates the file
      * @param file
      */
+    onValidate(file) {
+    }
+
+    /**
+     * Validates the file
+     * @param file
+     */
     validateFile(file) {
+        if (typeof this.onValidate === 'function') {
+            this.onValidate(file);
+        }
     }
 }

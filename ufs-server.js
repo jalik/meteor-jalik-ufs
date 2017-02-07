@@ -64,15 +64,15 @@ if (Meteor.isServer) {
         });
     });
 
-// Create domain to handle errors
-// and possibly avoid server crashes.
+    // Create domain to handle errors
+    // and possibly avoid server crashes.
     let d = domain.create();
 
     d.on('error', (err) => {
         console.error('ufs: ' + err.message);
     });
 
-// Listen HTTP requests to serve files
+    // Listen HTTP requests to serve files
     WebApp.connectHandlers.use((req, res, next) => {
         // Quick check to see if request should be catch
         if (req.url.indexOf(UploadFS.config.storesPath) === -1) {
@@ -199,8 +199,8 @@ if (Meteor.isServer) {
             }
 
             // Get store
-            let storeName = match[1];
-            let store = UploadFS.getStore(storeName);
+            const storeName = match[1];
+            const store = UploadFS.getStore(storeName);
 
             if (!store) {
                 res.writeHead(404);
@@ -220,7 +220,7 @@ if (Meteor.isServer) {
             let fileId = index !== -1 ? match[2].substr(0, index) : match[2];
 
             // Get file from database
-            let file = store.getCollection().findOne({_id: fileId});
+            const file = store.getCollection().findOne({_id: fileId});
             if (!file) {
                 res.writeHead(404);
                 res.end();
@@ -244,8 +244,43 @@ if (Meteor.isServer) {
                         'Content-Length': file.size
                     };
 
+                    // Add ETag header
+                    if (typeof file.etag === 'string') {
+                        headers['ETag'] = file.etag;
+                    }
+
+                    // Add Last-Modified header
+                    if (file.modifiedAt instanceof Date) {
+                        headers['Last-Modified'] = file.modifiedAt.toUTCString();
+                    }
+                    else if (file.uploadedAt instanceof Date) {
+                        headers['Last-Modified'] = file.uploadedAt.toUTCString();
+                    }
+
                     // Parse request headers
                     if (typeof req.headers === 'object') {
+
+                        // Compare ETag
+                        if (req.headers['if-none-match']) {
+                            if (file.etag === req.headers['if-none-match']) {
+                                res.writeHead(304); // Not Modified
+                                res.end();
+                                return;
+                            }
+                        }
+
+                        // Compare file modification date
+                        if (req.headers['if-modified-since']) {
+                            const modifiedSince = new Date(req.headers['if-modified-since']);
+
+                            if ((file.modifiedAt instanceof Date && file.modifiedAt > modifiedSince)
+                                || file.uploadedAt instanceof Date && file.uploadedAt > modifiedSince) {
+                                res.writeHead(304); // Not Modified
+                                res.end();
+                                return;
+                            }
+                        }
+
                         // Send data in range
                         if (typeof req.headers.range === 'string') {
                             let range = req.headers.range;

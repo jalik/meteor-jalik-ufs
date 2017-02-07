@@ -766,7 +766,11 @@ Some helpers are available by default to help you work with files inside templat
 ## Changelog
 
 ### Version 0.7.2
-- Adds `Store.validateFile(file)` to validate a file before writing to the store
+- Adds attribute `etag` to uploaded files
+- Adds HTTP cache support : return HTTP code `304` depending of `Last-Modified` and `If-None-Match` request headers (#110)
+- Adds method `UploadFS.addETagAttributeToFiles(where)` to add `etag` attribute to existing files
+- Adds method `UploadFS.generateEtag()`
+- Adds method `Store.onValidate(file)` to validate a file before writing to the store
 - Uses ES6 class syntax
 - Uses ES6 import syntax
 
