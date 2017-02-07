@@ -76,7 +76,7 @@ if (Meteor.isServer) {
                 let file = store.getCollection().findOne({_id: fileId});
 
                 // Validate file before moving to the store
-                store.validateFile(file);
+                store.validate(file);
 
                 // Get the temp file
                 let rs = fs.createReadStream(tmpFile, {

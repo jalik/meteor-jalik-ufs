@@ -595,7 +595,7 @@ export class Store {
      * Validates the file
      * @param file
      */
-    validateFile(file) {
+    validate(file) {
         if (typeof this.onValidate === 'function') {
             this.onValidate(file);
         }
