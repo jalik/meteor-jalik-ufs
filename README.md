@@ -766,9 +766,10 @@ Some helpers are available by default to help you work with files inside templat
 ## Changelog
 
 ### Version 0.7.2
+- Fixes file path/url when app is in a subfolder (#104)
 - Adds attribute `etag` to uploaded files
 - Adds HTTP cache support : return HTTP code `304` depending of `Last-Modified` and `If-None-Match` request headers (#110)
-- Adds option `Store.onValidate(file)` to validate a file before writing to the store
+- Adds option `Store.onValidate(file)` to validate a file before writing to the store (#109)
 - Adds method `UploadFS.addETagAttributeToFiles(where)` to add `etag` attribute to existing files
 - Adds method `UploadFS.generateEtag()`
 - Adds method `Store.validate(file)`
