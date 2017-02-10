@@ -55,7 +55,7 @@ export const UploadFS = {
 
             // By default update only files with no path set
             files.find(where || {etag: null}, {fields: {_id: 1}}).forEach((file) => {
-                files.update(file._id, {$set: {etag: this.generateEtag()}});
+                files.direct.update(file._id, {$set: {etag: this.generateEtag()}});
             });
         });
     },
@@ -79,7 +79,7 @@ export const UploadFS = {
 
             // By default update only files with no path set
             files.find(where || {path: null}, {fields: {_id: 1}}).forEach((file) => {
-                files.update(file._id, {$set: {path: store.getFileRelativeURL(file._id)}});
+                files.direct.update(file._id, {$set: {path: store.getFileRelativeURL(file._id)}});
             });
         });
     },

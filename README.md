@@ -804,6 +804,9 @@ Some helpers are available by default to help you work with files inside templat
 
 ## Changelog
 
+### Version 0.7.3
+- Bypasses collection permissions check when calling version upgrade methods
+
 ### Version 0.7.2
 - Fixes file path/url when app is in a subfolder (#104)
 - Adds attribute `etag` to uploaded files
