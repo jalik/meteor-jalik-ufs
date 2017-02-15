@@ -22,8 +22,7 @@
  * SOFTWARE.
  *
  */
-
-import {_} from 'meteor/underscore';
+import {_} from "meteor/underscore";
 
 
 /**
@@ -50,6 +49,7 @@ export class StorePermissions {
             throw new TypeError("StorePermissions: update is not a function");
         }
 
+        // Public attributes
         this.actions = {
             insert: options.insert,
             remove: options.remove,

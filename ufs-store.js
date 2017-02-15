@@ -22,15 +22,14 @@
  * SOFTWARE.
  *
  */
-
-import {_} from 'meteor/underscore';
-import {check} from 'meteor/check';
-import {Meteor} from 'meteor/meteor';
-import {Mongo} from 'meteor/mongo';
-import {UploadFS} from './ufs';
-import {Filter} from './ufs-filter';
-import {StorePermissions} from './ufs-store-permissions';
-import {Tokens} from './ufs-tokens';
+import {_} from "meteor/underscore";
+import {check} from "meteor/check";
+import {Meteor} from "meteor/meteor";
+import {Mongo} from "meteor/mongo";
+import {UploadFS} from "./ufs";
+import {Filter} from "./ufs-filter";
+import {StorePermissions} from "./ufs-store-permissions";
+import {Tokens} from "./ufs-tokens";
 
 
 /**
@@ -46,21 +45,16 @@ export class Store {
             collection: null,
             filter: null,
             name: null,
-            onCopyError: null,
-            onFinishUpload: null,
-            onRead: null,
-            onReadError: null,
+            onCopyError: this.onCopyError,
+            onFinishUpload: this.onFinishUpload,
+            onRead: this.onRead,
+            onReadError: this.onReadError,
             onValidate: this.onValidate,
-            onWriteError: null,
+            onWriteError: this.onWriteError,
             permissions: null,
             transformRead: null,
             transformWrite: null
         }, options);
-
-        // Check instance
-        if (!(self instanceof Store)) {
-            throw new Error('UploadFS.Store is not an instance');
-        }
 
         // Check options
         if (!(options.collection instanceof Mongo.Collection)) {
@@ -104,21 +98,23 @@ export class Store {
         }
 
         // Public attributes
-        self.onCopyError = options.onCopyError || self.onCopyError;
-        self.onFinishUpload = options.onFinishUpload || self.onFinishUpload;
-        self.onRead = options.onRead || self.onRead;
-        self.onReadError = options.onReadError || self.onReadError;
-        self.onWriteError = options.onWriteError || self.onWriteError;
+        self.options = options;
         self.permissions = options.permissions;
-        self.onValidate = options.onValidate;
+        _.each([
+            'onCopyError',
+            'onFinishUpload',
+            'onRead',
+            'onReadError',
+            'onWriteError',
+            'onValidate'
+        ], (method) => {
+            if (typeof options[method] === 'function') {
+                self[method] = options[method];
+            }
+        });
 
-        // Private attributes
-        let collection = options.collection;
-        let copyTo = options.copyTo;
-        let filter = options.filter;
-        let name = options.name;
-        let transformRead = options.transformRead;
-        let transformWrite = options.transformWrite;
+        // Add the store to the list
+        UploadFS.addStore(self);
 
         // Set default permissions
         if (!(self.permissions instanceof StorePermissions)) {
@@ -127,47 +123,9 @@ export class Store {
                 self.permissions = UploadFS.config.defaultStorePermissions;
             } else {
                 self.permissions = new StorePermissions();
-                console.warn(`ufs: permissions are not defined for store "${name}"`);
+                console.warn(`ufs: permissions are not defined for store "${options.name}"`);
             }
         }
-
-        // Add the store to the list
-        UploadFS.getStores()[name] = self;
-
-        /**
-         * Returns the collection
-         * @return {Mongo.Collection}
-         */
-        self.getCollection = function () {
-            return collection;
-        };
-
-        /**
-         * Returns the file filter
-         * @return {UploadFS.Filter}
-         */
-        self.getFilter = function () {
-            return filter;
-        };
-
-        /**
-         * Returns the store name
-         * @return {string}
-         */
-        self.getName = function () {
-            return name;
-        };
-
-        /**
-         * Defines the store permissions
-         * @param permissions
-         */
-        self.setPermissions = function (permissions) {
-            if (!(permissions instanceof StorePermissions)) {
-                throw new TypeError("permissions is not an instance of UploadFS.StorePermissions");
-            }
-            self.permissions = permissions;
-        };
 
         if (Meteor.isServer) {
 
@@ -196,12 +154,12 @@ export class Store {
                     throw new TypeError('store is not an instance of UploadFS.Store');
                 }
                 // Get original file
-                let file = collection.findOne({_id: fileId});
+                let file = self.getCollection().findOne({_id: fileId});
                 if (!file) {
                     throw new Meteor.Error('file-not-found', 'File not found');
                 }
                 // Silently ignore the file if it does not match filter
-                let filter = store.getFilter();
+                const filter = store.getFilter();
                 if (filter instanceof Filter && !filter.isValid(file)) {
                     return;
                 }
@@ -225,7 +183,7 @@ export class Store {
                 // Copy file data
                 store.write(rs, copyId, Meteor.bindEnvironment(function (err) {
                     if (err) {
-                        collection.remove({_id: copyId});
+                        self.getCollection().remove({_id: copyId});
                         self.onCopyError.call(self, err, fileId, file);
                     }
                     if (typeof callback === 'function') {
@@ -242,8 +200,8 @@ export class Store {
              */
             self.create = function (file, callback) {
                 check(file, Object);
-                file.store = name;
-                return collection.insert(file, callback);
+                file.store = self.options.name; // assign store to file
+                return self.getCollection().insert(file, callback);
             };
 
             /**
@@ -273,62 +231,17 @@ export class Store {
             };
 
             /**
-             * Generates a random token
-             * @param pattern
-             * @return {string}
-             */
-            self.generateToken = function (pattern) {
-                return (pattern || 'xyxyxyxyxy').replace(/[xy]/g, function (c) {
-                    let r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-                    let s = v.toString(16);
-                    return Math.round(Math.random()) ? s.toUpperCase() : s;
-                });
-            };
-
-            /**
-             * Transforms the file on reading
-             * @param readStream
-             * @param writeStream
-             * @param fileId
-             * @param file
-             * @param request
-             * @param headers
-             */
-            self.transformRead = function (readStream, writeStream, fileId, file, request, headers) {
-                if (typeof transformRead === 'function') {
-                    transformRead.call(self, readStream, writeStream, fileId, file, request, headers);
-                } else {
-                    readStream.pipe(writeStream);
-                }
-            };
-
-            /**
-             * Transforms the file on writing
-             * @param readStream
-             * @param writeStream
-             * @param fileId
-             * @param file
-             */
-            self.transformWrite = function (readStream, writeStream, fileId, file) {
-                if (typeof transformWrite === 'function') {
-                    transformWrite.call(self, readStream, writeStream, fileId, file);
-                } else {
-                    readStream.pipe(writeStream);
-                }
-            };
-
-            /**
              * Writes the file to the store
              * @param rs
              * @param fileId
              * @param callback
              */
             self.write = function (rs, fileId, callback) {
-                let file = collection.findOne({_id: fileId});
+                let file = self.getCollection().findOne({_id: fileId});
                 let ws = self.getWriteStream(fileId, file);
 
                 let errorHandler = Meteor.bindEnvironment(function (err) {
-                    collection.remove({_id: fileId});
+                    self.getCollection().remove({_id: fileId});
                     self.onWriteError.call(self, err, fileId, file);
                     callback.call(self, err);
                 });
@@ -358,7 +271,7 @@ export class Store {
 
                         // Sets the file URL when file transfer is complete,
                         // this way, the image will loads entirely.
-                        collection.direct.update({_id: fileId}, {
+                        self.getCollection().direct.update({_id: fileId}, {
                             $set: {
                                 complete: file.complete,
                                 etag: file.etag,
@@ -386,9 +299,9 @@ export class Store {
                         }
 
                         // Copy file to other stores
-                        if (copyTo instanceof Array) {
-                            for (let i = 0; i < copyTo.length; i += 1) {
-                                let store = copyTo[i];
+                        if (self.options.copyTo instanceof Array) {
+                            for (let i = 0; i < self.options.copyTo.length; i += 1) {
+                                let store = self.options.copyTo[i];
 
                                 if (!store.getFilter() || store.getFilter().isValid(file)) {
                                     self.copy(fileId, store);
@@ -405,16 +318,17 @@ export class Store {
 
         if (Meteor.isServer) {
             const fs = Npm.require('fs');
+            const collection = self.getCollection();
 
             // Code executed after removing file
             collection.after.remove(function (userId, file) {
                 // Remove associated tokens
                 Tokens.remove({fileId: file._id});
 
-                if (copyTo instanceof Array) {
-                    for (let i = 0; i < copyTo.length; i += 1) {
+                if (self.options.copyTo instanceof Array) {
+                    for (let i = 0; i < self.options.copyTo.length; i += 1) {
                         // Remove copies in stores
-                        copyTo[i].getCollection().remove({originalId: file._id});
+                        self.options.copyTo[i].getCollection().remove({originalId: file._id});
                     }
                 }
             });
@@ -451,91 +365,43 @@ export class Store {
                     });
                 });
             });
-
-            /**
-             * Deletes a file async
-             * @param fileId
-             * @param callback
-             */
-            self.delete = function (fileId, callback) {
-                throw new Error('delete is not implemented');
-            };
-
-            /**
-             * Returns the file read stream
-             * @param fileId
-             * @param file
-             */
-            self.getReadStream = function (fileId, file) {
-                throw new Error('getReadStream is not implemented');
-            };
-
-            /**
-             * Returns the file write stream
-             * @param fileId
-             * @param file
-             */
-            self.getWriteStream = function (fileId, file) {
-                throw new Error('getWriteStream is not implemented');
-            };
-
-            /**
-             * Callback for copy errors
-             * @param err
-             * @param fileId
-             * @param file
-             * @return boolean
-             */
-            self.onCopyError = function (err, fileId, file) {
-                console.error(`ufs: cannot copy file "${fileId}" (${err.message})`, err);
-            };
-
-            /**
-             * Called when a file has been uploaded
-             * @param file
-             */
-            self.onFinishUpload = function (file) {
-            };
-
-            /**
-             * Called when a file is read from the store
-             * @param fileId
-             * @param file
-             * @param request
-             * @param response
-             * @return boolean
-             */
-            self.onRead = function (fileId, file, request, response) {
-                return true;
-            };
-
-            /**
-             * Callback for read errors
-             * @param err
-             * @param fileId
-             * @param file
-             * @return boolean
-             */
-            self.onReadError = function (err, fileId, file) {
-                console.error(`ufs: cannot read file "${fileId}" (${err.message})`, err);
-            };
-
-            /**
-             * Callback for write errors
-             * @param err
-             * @param fileId
-             * @param file
-             * @return boolean
-             */
-            self.onWriteError = function (err, fileId, file) {
-                console.error(`ufs: cannot write file "${fileId}" (${err.message})`, err);
-            };
         }
+    }
+
+    /**
+     * Deletes a file async
+     * @param fileId
+     * @param callback
+     */
+    delete(fileId, callback) {
+        throw new Error('delete is not implemented');
+    }
+
+    /**
+     * Generates a random token
+     * @param pattern
+     * @return {string}
+     */
+    generateToken(pattern) {
+        return (pattern || 'xyxyxyxyxy').replace(/[xy]/g, (c) => {
+            let r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+            let s = v.toString(16);
+            return Math.round(Math.random()) ? s.toUpperCase() : s;
+        });
+    }
+
+    /**
+     * Returns the collection
+     * @return {Mongo.Collection}
+     */
+    getCollection() {
+        return this.options.collection;
     }
 
     /**
      * Returns the file URL
      * @param fileId
+     * @return {string|null}
      */
     getFileRelativeURL(fileId) {
         let file = this.getCollection().findOne(fileId, {fields: {name: 1}});
@@ -545,6 +411,7 @@ export class Store {
     /**
      * Returns the file URL
      * @param fileId
+     * @return {string|null}
      */
     getFileURL(fileId) {
         let file = this.getCollection().findOne(fileId, {fields: {name: 1}});
@@ -552,8 +419,34 @@ export class Store {
     }
 
     /**
+     * Returns the file filter
+     * @return {UploadFS.Filter}
+     */
+    getFilter() {
+        return this.options.filter;
+    }
+
+    /**
+     * Returns the store name
+     * @return {string}
+     */
+    getName() {
+        return this.options.name;
+    }
+
+    /**
+     * Returns the file read stream
+     * @param fileId
+     * @param file
+     */
+    getReadStream(fileId, file) {
+        throw new Error('Store.getReadStream is not implemented');
+    }
+
+    /**
      * Returns the store relative URL
      * @param path
+     * @return {string}
      */
     getRelativeURL(path) {
         const rootUrl = Meteor.absoluteUrl().replace(/\/+$/, '');
@@ -566,12 +459,22 @@ export class Store {
     /**
      * Returns the store absolute URL
      * @param path
+     * @return {string}
      */
     getURL(path) {
         const rootUrl = Meteor.absoluteUrl().replace(/\/+$/, '');
         const storeName = this.getName();
         path = String(path).replace(/\/$/, '').trim();
         return encodeURI(`${rootUrl}/${UploadFS.config.storesPath}/${storeName}/${path}`);
+    }
+
+    /**
+     * Returns the file write stream
+     * @param fileId
+     * @param file
+     */
+    getWriteStream(fileId, file) {
+        throw new Error('getWriteStream is not implemented');
     }
 
     /**
@@ -585,10 +488,104 @@ export class Store {
     }
 
     /**
-     * Validates the file
+     * Called when a copy error happened
+     * @param err
+     * @param fileId
+     * @param file
+     */
+    onCopyError(err, fileId, file) {
+        console.error(`ufs: cannot copy file "${fileId}" (${err.message})`, err);
+    }
+
+    /**
+     * Called when a file has been uploaded
+     * @param file
+     */
+    onFinishUpload(file) {
+    }
+
+    /**
+     * Called when a file is read from the store
+     * @param fileId
+     * @param file
+     * @param request
+     * @param response
+     * @return boolean
+     */
+    onRead(fileId, file, request, response) {
+        return true;
+    }
+
+    /**
+     * Called when a read error happened
+     * @param err
+     * @param fileId
+     * @param file
+     * @return boolean
+     */
+    onReadError(err, fileId, file) {
+        console.error(`ufs: cannot read file "${fileId}" (${err.message})`, err);
+    }
+
+    /**
+     * Called when file is being validated
      * @param file
      */
     onValidate(file) {
+    }
+
+    /**
+     * Called when a write error happened
+     * @param err
+     * @param fileId
+     * @param file
+     * @return boolean
+     */
+    onWriteError(err, fileId, file) {
+        console.error(`ufs: cannot write file "${fileId}" (${err.message})`, err);
+    }
+
+    /**
+     * Sets the store permissions
+     * @param permissions
+     */
+    setPermissions(permissions) {
+        if (!(permissions instanceof StorePermissions)) {
+            throw new TypeError("Permissions is not an instance of UploadFS.StorePermissions");
+        }
+        this.permissions = permissions;
+    }
+
+    /**
+     * Transforms the file on reading
+     * @param readStream
+     * @param writeStream
+     * @param fileId
+     * @param file
+     * @param request
+     * @param headers
+     */
+    transformRead(readStream, writeStream, fileId, file, request, headers) {
+        if (typeof this.options.transformRead === 'function') {
+            this.options.transformRead.call(this, readStream, writeStream, fileId, file, request, headers);
+        } else {
+            readStream.pipe(writeStream);
+        }
+    }
+
+    /**
+     * Transforms the file on writing
+     * @param readStream
+     * @param writeStream
+     * @param fileId
+     * @param file
+     */
+    transformWrite(readStream, writeStream, fileId, file) {
+        if (typeof this.options.transformWrite === 'function') {
+            this.options.transformWrite.call(this, readStream, writeStream, fileId, file);
+        } else {
+            readStream.pipe(writeStream);
+        }
     }
 
     /**

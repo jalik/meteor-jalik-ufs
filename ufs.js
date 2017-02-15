@@ -22,13 +22,17 @@
  * SOFTWARE.
  *
  */
-
-import {_} from 'meteor/underscore';
-import {Meteor} from 'meteor/meteor';
-import {Mongo} from 'meteor/mongo';
-import {MIME} from './ufs-mime';
-import {Random} from 'meteor/random';
-import {Tokens} from './ufs-tokens';
+import {_} from "meteor/underscore";
+import {Meteor} from "meteor/meteor";
+import {Mongo} from "meteor/mongo";
+import {MIME} from "./ufs-mime";
+import {Random} from "meteor/random";
+import {Tokens} from "./ufs-tokens";
+import {Config} from "./ufs-config";
+import {Filter} from "./ufs-filter";
+import {Store} from "./ufs-store";
+import {StorePermissions} from "./ufs-store-permissions";
+import {Uploader} from "./ufs-uploader";
 
 
 let stores = {};
@@ -82,6 +86,17 @@ export const UploadFS = {
                 files.direct.update(file._id, {$set: {path: store.getFileRelativeURL(file._id)}});
             });
         });
+    },
+
+    /**
+     * Registers the store
+     * @param store
+     */
+    addStore(store) {
+        if (!(store instanceof Store)) {
+            throw new TypeError(`ufs: store is not an instance of UploadFS.Store.`);
+        }
+        stores[store.getName()] = store;
     },
 
     /**
@@ -201,12 +216,6 @@ export const UploadFS = {
     }
 };
 
-
-import {Config} from './ufs-config';
-import {Filter} from './ufs-filter';
-import {Store} from './ufs-store';
-import {StorePermissions} from './ufs-store-permissions';
-import {Uploader} from './ufs-uploader';
 
 if (Meteor.isClient) {
     require('./ufs-template-helpers');

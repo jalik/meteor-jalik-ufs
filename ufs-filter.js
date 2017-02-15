@@ -22,9 +22,8 @@
  * SOFTWARE.
  *
  */
-
-import {_} from 'meteor/underscore';
-import {Meteor} from 'meteor/meteor';
+import {_} from "meteor/underscore";
+import {Meteor} from "meteor/meteor";
 
 
 /**
@@ -33,13 +32,15 @@ import {Meteor} from 'meteor/meteor';
 export class Filter {
 
     constructor(options) {
+        const self = this;
+
         // Default options
         options = _.extend({
             contentTypes: null,
             extensions: null,
             minSize: 1,
             maxSize: 0,
-            onCheck: null
+            onCheck: this.onCheck
         }, options);
 
         // Check options
@@ -59,45 +60,15 @@ export class Filter {
             throw new TypeError("Filter: onCheck is not a function");
         }
 
-        // Private attributes
-        let contentTypes = options.contentTypes;
-        let extensions = options.extensions;
-        let maxSize = parseInt(options.maxSize);
-        let minSize = parseInt(options.minSize);
-
-        this.onCheck = options.onCheck;
-
-        /**
-         * Returns the allowed content types
-         * @return {Array}
-         */
-        this.getContentTypes = () => {
-            return contentTypes;
-        };
-
-        /**
-         * Returns the allowed extensions
-         * @return {Array}
-         */
-        this.getExtensions = () => {
-            return extensions;
-        };
-
-        /**
-         * Returns the maximum file size
-         * @return {Number}
-         */
-        this.getMaxSize = () => {
-            return maxSize;
-        };
-
-        /**
-         * Returns the minimum file size
-         * @return {Number}
-         */
-        this.getMinSize = () => {
-            return minSize;
-        };
+        // Public attributes
+        self.options = options;
+        _.each([
+            'onCheck'
+        ], (method) => {
+            if (typeof options[method] === 'function') {
+                self[method] = options[method];
+            }
+        });
     }
 
     /**
@@ -127,6 +98,38 @@ export class Filter {
         if (typeof this.onCheck === 'function' && !this.onCheck(file)) {
             throw new Meteor.Error('invalid-file', "File does not match filter");
         }
+    }
+
+    /**
+     * Returns the allowed content types
+     * @return {Array}
+     */
+    getContentTypes() {
+        return this.options.contentTypes;
+    }
+
+    /**
+     * Returns the allowed extensions
+     * @return {Array}
+     */
+    getExtensions() {
+        return this.options.extensions;
+    }
+
+    /**
+     * Returns the maximum file size
+     * @return {Number}
+     */
+    getMaxSize() {
+        return this.options.maxSize;
+    }
+
+    /**
+     * Returns the minimum file size
+     * @return {Number}
+     */
+    getMinSize() {
+        return this.options.minSize;
     }
 
     /**

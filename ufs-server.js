@@ -22,11 +22,10 @@
  * SOFTWARE.
  *
  */
-
-import {_} from 'meteor/underscore';
-import {Meteor} from 'meteor/meteor';
-import {WebApp} from 'meteor/webapp';
-import {UploadFS} from './ufs';
+import {_} from "meteor/underscore";
+import {Meteor} from "meteor/meteor";
+import {WebApp} from "meteor/webapp";
+import {UploadFS} from "./ufs";
 
 
 if (Meteor.isServer) {
@@ -209,7 +208,7 @@ if (Meteor.isServer) {
             }
 
             if (store.onRead !== null && store.onRead !== undefined && typeof store.onRead !== 'function') {
-                console.error(`ufs: store "${storeName}" onRead is not a function`);
+                console.error(`ufs: Store.onRead is not a function in store "${storeName}"`);
                 res.writeHead(500);
                 res.end();
                 return;
