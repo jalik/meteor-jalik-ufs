@@ -116,9 +116,17 @@ const PhotoStore = new UploadFS.store.Local({
 
 ## Filtering uploads (server)
 
-You can set an `UploadFS.Filter` to the store to define restrictions on file uploads.
-Filter is tested before inserting a file in the collection.
+### Filtering before uploading
+You can filter uploads by assigning a `UploadFS.Filter` to a store.
+The filter is tested before inserting a file in the collection.
 If the file does not match the filter, it won't be inserted and will not be uploaded.
+
+### Filtering after uploading
+When the file is fully uploaded to the server, it's still in a temporary location.
+At this moment you can validate the uploaded file before writing it to the store.
+To do this, use `onValidate` option in the store options.
+
+The following example shows a complete validation (before and after upload).
 
 ```js
 import {Mongo} from 'meteor/mongo';
@@ -136,7 +144,39 @@ const PhotoStore = new UploadFS.store.Local({
         maxSize: 1024 * 1000, // 1MB,
         contentTypes: ['image/*'],
         extensions: ['jpg', 'png']
-    })
+    }),
+    // Make sure that gallery pictures are indeed images
+    onValidate: function (file) {
+        // Here 'file' contains file metadata sent by the client, we need to get
+        // the disk path to the uploaded temp file to give it to gm.
+        const tempFilePath = UploadFS.getTempFilePath(file._id);
+        
+        // Since the 'identify' function below is executed in a callback,
+        // we cannot directly throw an exception from it, because the exception would
+        // be catched by the server and not by ufs. We need to throw the exception
+        // from this onValidate function, so that ufs can catch the exception and
+        // trigger the cleanup process/report the error to the client.
+        // We do this by defining a future and waiting for it in onValidate, and having
+        // the future throw the exception instead of throwing it directly from
+        // the 'identify' function.
+        let future = new Future();
+        
+        // identify will return an error if the content of the file is not an image.
+        // If it is an image, then details on the image file will be in data.
+        const identify = function (err, data) {
+            if (err) {
+                // Throw an exception to inform the client and trigger the cleanup process
+                future.throw(new Meteor.Error('not-an-image', 'The file is not an image'));
+            } else {
+                // We need to tell our future to return, or else it would stay stuck.
+                future.return();
+            }
+        };
+        gm(tempFilePath).identify(identify);
+        
+        // Wait for 'identify' to complete, and either return or throw the exception
+        return future.wait();
+    }
 });
 ```
 
