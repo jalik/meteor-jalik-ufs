@@ -850,6 +850,7 @@ Some helpers are available by default to help you work with files inside templat
 ### Version 0.7.4
 **Security fix, please upgrade as soon as possible**
 - Fixes store callback events not being called : `onCopyError`, `onFinishUpload`, `onRead`, `onReadError`, `onWriteError`
+- Adds method `UploadFS.addStore(store)`
 
 ### Version 0.7.3
 - Bypasses collection permissions check when calling version upgrade methods
