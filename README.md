@@ -844,6 +844,9 @@ Some helpers are available by default to help you work with files inside templat
 
 ## Changelog
 
+### Version 0.7.4_1
+- Fixes file selection input visible in Safari
+
 ### Version 0.7.4
 **Security fix, please upgrade as soon as possible**
 - Fixes store callback events not being called : `onCopyError`, `onFinishUpload`, `onRead`, `onReadError`, `onWriteError`

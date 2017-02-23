@@ -181,16 +181,20 @@ export const UploadFS = {
      * @param callback
      */
     selectFile(callback) {
-        let input = document.createElement('input');
+        const input = document.createElement('input');
         input.type = 'file';
         input.multiple = false;
         input.onchange = (ev) => {
             let files = ev.target.files;
             callback.call(UploadFS, files[0]);
         };
-        // Fix for iOS
-        input.style = 'display:none';
-        document.body.appendChild(input);
+        // Fix for iOS/Safari
+        const div = document.createElement('div');
+        div.className = 'ufs-file-selector';
+        div.style = 'display:none; height:0; width:0; overflow: hidden;';
+        div.appendChild(input);
+        document.body.appendChild(div);
+        // Trigger file selection
         input.click();
     },
 
@@ -199,19 +203,23 @@ export const UploadFS = {
      * @param callback
      */
     selectFiles(callback) {
-        let input = document.createElement('input');
+        const input = document.createElement('input');
         input.type = 'file';
         input.multiple = true;
         input.onchange = (ev) => {
-            let files = ev.target.files;
+            const files = ev.target.files;
 
             for (let i = 0; i < files.length; i += 1) {
                 callback.call(UploadFS, files[i]);
             }
         };
-        // Fix for iOS
-        input.style = 'display:none';
-        document.body.appendChild(input);
+        // Fix for iOS/Safari
+        const div = document.createElement('div');
+        div.className = 'ufs-file-selector';
+        div.style = 'display:none; height:0; width:0; overflow: hidden;';
+        div.appendChild(input);
+        document.body.appendChild(div);
+        // Trigger file selection
         input.click();
     }
 };
