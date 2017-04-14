@@ -657,7 +657,7 @@ Template.upload.events({
                 // The document to save in the collection
                 file: photo,
                 // The error callback
-                onError(err) {
+                onError(err, file) {
                     console.error(err);
                 },
                 onAbort(file) {
