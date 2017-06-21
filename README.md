@@ -103,11 +103,12 @@ Each store has its own options, so refer to the store documentation to see avail
 
 ```js
 import {Mongo} from 'meteor/mongo';
+import {LocalStore} from 'meteor/jalik:ufs-local';
 import {UploadFS} from 'meteor/jalik:ufs';
 
 const Photos = new Mongo.Collection('photos');
 
-const PhotoStore = new UploadFS.store.Local({
+const PhotoStore = new LocalStore({
     collection: Photos,
     name: 'photos',
     path: '/uploads/photos'
@@ -130,11 +131,12 @@ The following example shows a complete validation (before and after upload).
 
 ```js
 import {Mongo} from 'meteor/mongo';
+import {LocalStore} from 'meteor/jalik:ufs-local';
 import {UploadFS} from 'meteor/jalik:ufs';
 
 const Photos = new Mongo.Collection('photos');
 
-const PhotoStore = new UploadFS.store.Local({
+const PhotoStore = new LocalStore({
     collection: Photos,
     name: 'photos',
     path: '/uploads/photos',
@@ -184,11 +186,12 @@ If you need a more advanced filter, you can pass your own method using the `onCh
 
 ```js
 import {Mongo} from 'meteor/mongo';
+import {LocalStore} from 'meteor/jalik:ufs-local';
 import {UploadFS} from 'meteor/jalik:ufs';
 
 const Photos = new Mongo.Collection('photos');
 
-const PhotoStore = new UploadFS.store.Local({
+const PhotoStore = new LocalStore({
     collection: Photos,
     name: 'photos',
     path: '/uploads/photos',
@@ -214,12 +217,13 @@ A common use is to resize/compress images to optimize the uploaded files.
 
 ```js
 import gm from 'gm';
+import {LocalStore} from 'meteor/jalik:ufs-local';
 import {Mongo} from 'meteor/mongo';
 import {UploadFS} from 'meteor/jalik:ufs';
 
 const Photos = new Mongo.Collection('photos');
 
-const PhotoStore = new UploadFS.store.Local({
+const PhotoStore = new LocalStore({
     collection: Photos,
     name: 'photos',
     path: '/uploads/photos',
@@ -251,6 +255,7 @@ To copy files that are saved in a store, use the `copyTo` option, you just need 
 
 ```js
 import gm from 'gm';
+import {LocalStore} from 'meteor/jalik:ufs-local';
 import {Mongo} from 'meteor/mongo';
 import {UploadFS} from 'meteor/jalik:ufs';
 
@@ -258,7 +263,7 @@ const Files = new Mongo.Collection('files');
 const Thumbnails128 = new Mongo.Collection('thumbnails-128');
 const Thumbnails64 = new Mongo.Collection('thumbnails-64');
 
-const Thumbnail128Store = new UploadFS.store.Local({
+const Thumbnail128Store = new LocalStore({
     collection: Thumbnails128,
     name: 'thumbnails-128',
     path: '/uploads/thumbnails/128x128',
@@ -277,7 +282,7 @@ const Thumbnail128Store = new UploadFS.store.Local({
     }
 });
 
-const Thumbnail64Store = new UploadFS.store.Local({
+const Thumbnail64Store = new LocalStore({
     collection: Thumbnails64,
     name: 'thumbnails-64',
     path: '/uploads/thumbnails/64x64',
@@ -296,7 +301,7 @@ const Thumbnail64Store = new UploadFS.store.Local({
     }
 });
 
-const FileStore = new UploadFS.store.Local({
+const FileStore = new LocalStore({
     collection: Files,
     name: 'files',
     path: '/uploads/files',
@@ -311,18 +316,19 @@ You can also manually copy a file to another store by using the `copy()` method.
 
 ```js
 import {Mongo} from 'meteor/mongo';
+import {LocalStore} from 'meteor/jalik:ufs-local';
 import {UploadFS} from 'meteor/jalik:ufs';
 
 const Backups = new Mongo.Collection('backups');
 const Photos = new Mongo.Collection('photos');
 
-const PhotoStore = new UploadFS.store.Local({
+const PhotoStore = new LocalStore({
     collection: Photos,
     name: 'photos',
     path: '/uploads/photos'
 });
 
-const BackupStore = new UploadFS.store.Local({
+const BackupStore = new LocalStore({
     collection: Backups,
     name: 'backups',
     path: '/backups'
@@ -372,12 +378,13 @@ Before writing file to a store, you can validate the uploaded file, like checkin
 
 ```js
 import gm from 'gm';
+import {LocalStore} from 'meteor/jalik:ufs-local';
 import {Mongo} from 'meteor/mongo';
 import {UploadFS} from 'meteor/jalik:ufs';
 
 const Images = new Mongo.Collection('files');
 
-const ImageStore = new UploadFS.store.Local({
+const ImageStore = new LocalStore({
     collection: Images,
     name: 'images',
     path: '/uploads/images',
@@ -413,6 +420,9 @@ By default, there is no restriction (except the filter) on insert, remove and up
 **The permission system has changed since `v0.6.1`, you must define permissions like this :**
 
 ```js
+import {LocalStore} from 'meteor/jalik:ufs-local';
+import {UploadFS} from 'meteor/jalik:ufs';
+
 PhotoStore.setPermissions(new UploadFS.StorePermissions({
     insert(userId, doc) {
         return userId;
@@ -429,12 +439,13 @@ PhotoStore.setPermissions(new UploadFS.StorePermissions({
 or when you create the store :
 
 ```js
+import {LocalStore} from 'meteor/jalik:ufs-local';
 import {Mongo} from 'meteor/mongo';
 import {UploadFS} from 'meteor/jalik:ufs';
 
 const Photos = new Mongo.Collection('photos');
 
-const PhotoStore = new UploadFS.store.Local({
+const PhotoStore = new LocalStore({
     collection: Photos,
     name: 'photos',
     path: '/uploads/photos',
@@ -486,12 +497,13 @@ This is done by defining the `onRead()` method on the store.
 ```
 
 ```js
+import {LocalStore} from 'meteor/jalik:ufs-local';
 import {Mongo} from 'meteor/mongo';
 import {UploadFS} from 'meteor/jalik:ufs';
 
 const Photos = new Mongo.Collection('photos');
 
-const PhotoStore = new UploadFS.store.Local({
+const PhotoStore = new LocalStore({
     collection: Photos,
     name: 'photos',
     path: '/uploads/photos',
@@ -512,12 +524,13 @@ const PhotoStore = new UploadFS.store.Local({
 Some events are triggered to allow you to do something at the right moment on server side.
 
 ```js
+import {LocalStore} from 'meteor/jalik:ufs-local';
 import {Mongo} from 'meteor/mongo';
 import {UploadFS} from 'meteor/jalik:ufs';
 
 const Photos = new Mongo.Collection('photos');
 
-const PhotoStore = new UploadFS.store.Local({
+const PhotoStore = new LocalStore({
     collection: Photos,
     name: 'photos',
     path: '/uploads/photos',
@@ -545,13 +558,14 @@ const PhotoStore = new UploadFS.store.Local({
 If you need to get a file directly from a store, do like below :
 
 ```js
+import {LocalStore} from 'meteor/jalik:ufs-local';
 import {Meteor} from 'meteor/meteor';
 import {Mongo} from 'meteor/mongo';
 import {UploadFS} from 'meteor/jalik:ufs';
 
 const Photos = new Mongo.Collection('photos');
 
-const PhotoStore = new UploadFS.store.Local({
+const PhotoStore = new LocalStore({
     collection: Photos,
     name: 'photos',
     path: '/uploads/photos'
@@ -606,13 +620,14 @@ Here is the template to upload one or more files :
 And there the code to upload the selected files :
 
 ```js
+import {LocalStore} from 'meteor/jalik:ufs-local';
 import {Mongo} from 'meteor/mongo';
 import {Template} from 'meteor/templating';
 import {UploadFS} from 'meteor/jalik:ufs';
 
 const Photos = new Mongo.Collection('photos');
 
-const PhotoStore = new UploadFS.store.Local({
+const PhotoStore = new LocalStore({
     collection: Photos,
     name: 'photos',
     path: '/uploads/photos'
@@ -707,12 +722,13 @@ During uploading you can get some kind of useful information like the following 
 You can import a file from an absolute URL by using one of the following methods :
 
 ```js
+import {LocalStore} from 'meteor/jalik:ufs-local';
 import {Mongo} from 'meteor/mongo';
 import {UploadFS} from 'meteor/jalik:ufs';
 
 const Photos = new Mongo.Collection('photos');
 
-const PhotoStore = new UploadFS.store.Local({
+const PhotoStore = new LocalStore({
     collection: Photos,
     name: 'photos',
     path: '/uploads/photos'
@@ -993,7 +1009,11 @@ Photos.allow({
 Now you can set the permissions when you create the store :
 
 ```js
-PhotoStore = new UploadFS.store.Local({
+import {LocalStore} from 'meteor/jalik:ufs-local';
+
+const Photos = new Mongo.Collection("photos");
+
+PhotoStore = new LocalStore({
     collection: Photos,
     name: 'photos',
     path: '/uploads/photos',
