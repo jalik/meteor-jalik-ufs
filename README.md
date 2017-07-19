@@ -860,6 +860,9 @@ Some helpers are available by default to help you work with files inside templat
 
 ## Changelog
 
+### Version 0.7.4_2
+- Calls store's `onFinishUpload((file) => {})` method before updating the file, so you can modify the file document (metadata like name, description...)
+
 ### Version 0.7.4_1
 - Fixes file selection input visible in Safari
 

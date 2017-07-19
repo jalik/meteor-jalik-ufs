@@ -269,6 +269,11 @@ export class Store {
                         file.uploadedAt = new Date();
                         file.url = self.getFileURL(fileId);
 
+                        // Execute callback
+                        if (typeof self.onFinishUpload === 'function') {
+                            self.onFinishUpload.call(self, file);
+                        }
+
                         // Sets the file URL when file transfer is complete,
                         // this way, the image will loads entirely.
                         self.getCollection().direct.update({_id: fileId}, {
@@ -287,11 +292,6 @@ export class Store {
 
                         // Return file info
                         callback.call(self, null, file);
-
-                        // Execute callback
-                        if (typeof self.onFinishUpload == 'function') {
-                            self.onFinishUpload.call(self, file);
-                        }
 
                         // Simulate write speed
                         if (UploadFS.config.simulateWriteDelay) {
@@ -384,7 +384,7 @@ export class Store {
      */
     generateToken(pattern) {
         return (pattern || 'xyxyxyxyxy').replace(/[xy]/g, (c) => {
-            let r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+            let r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
             let s = v.toString(16);
             return Math.round(Math.random()) ? s.toUpperCase() : s;
         });

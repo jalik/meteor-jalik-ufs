@@ -110,7 +110,7 @@ if (Meteor.isServer) {
             catch (err) {
                 // If write failed, remove the file
                 store.getCollection().remove({_id: fileId});
-                // removeTempFile();
+                // removeTempFile(); // todo remove temp file on error or try again ?
                 fut.throw(err);
             }
             return fut.wait();

@@ -185,7 +185,7 @@ if (Meteor.isServer) {
                 res.end();
             });
         }
-        else if (req.method == 'GET') {
+        else if (req.method === 'GET') {
             // Get store, file Id and file name
             let regExp = new RegExp('^\/([^\/\?]+)\/([^\/\?]+)(?:\/([^\/\?]+))?$');
             let match = regExp.exec(path);
@@ -280,9 +280,9 @@ if (Meteor.isServer) {
                             }
                         }
 
-                        // Send data in range
+                        // Support range request
                         if (typeof req.headers.range === 'string') {
-                            let range = req.headers.range;
+                            const range = req.headers.range;
 
                             // Range is not valid
                             if (!range) {
@@ -291,25 +291,46 @@ if (Meteor.isServer) {
                                 return;
                             }
 
-                            let positions = range.replace(/bytes=/, '').split('-');
-                            let start = parseInt(positions[0], 10);
-                            let total = file.size;
-                            let end = positions[1] ? parseInt(positions[1], 10) : total - 1;
+                            const total = file.size;
+                            const unit = range.substr(0, range.indexOf("="));
 
-                            // Update headers
-                            headers['Content-Range'] = `bytes ${start}-${end}/${total}`;
-                            headers['Accept-Ranges'] = `bytes`;
-                            headers['Content-Length'] = (end - start) + 1;
+                            if (unit !== "bytes") {
+                                res.writeHead(416);
+                                res.end();
+                                return;
+                            }
 
+                            const ranges = range.substr(unit.length).replace(/[^0-9\-,]/, '').split(',');
+
+                            if (ranges.length > 1) {
+                                //todo: support multipart ranges: https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests
+                            } else {
+                                const r = ranges[0].split("-");
+                                const start = parseInt(r[0], 10);
+                                const end = r[1] ? parseInt(r[1], 10) : total - 1;
+
+                                // Range is not valid
+                                if (start < 0 || end >= total || start > end) {
+                                    res.writeHead(416);
+                                    res.end();
+                                    return;
+                                }
+
+                                // Update headers
+                                headers['Content-Range'] = `bytes ${start}-${end}/${total}`;
+                                headers['Content-Length'] = end - start + 1;
+                                options.start = start;
+                                options.end = end;
+                            }
                             status = 206; // partial content
-                            options.start = start;
-                            options.end = end;
                         }
+                    } else {
+                        headers['Accept-Ranges'] = "bytes";
                     }
 
                     // Open the file stream
-                    let rs = store.getReadStream(fileId, file, options);
-                    let ws = new stream.PassThrough();
+                    const rs = store.getReadStream(fileId, file, options);
+                    const ws = new stream.PassThrough();
 
                     rs.on('error', Meteor.bindEnvironment((err) => {
                         store.onReadError.call(store, err, fileId, file);
