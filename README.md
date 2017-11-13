@@ -774,6 +774,27 @@ const PhotoStore = new UploadFS.Store.Local({
 });
 ```
 
+### Removing files
+
+To remove a file, simply delete it from the collection (database) and the physical file will be automatically removed from the store wherever it is (in the cloud, on the filesystem, in database...) :
+
+```js
+import {LocalStore} from 'meteor/jalik:ufs-local';
+import {Mongo} from 'meteor/mongo';
+import {UploadFS} from 'meteor/jalik:ufs';
+
+const Photos = new Mongo.Collection('photos');
+
+const PhotoStore = new LocalStore({
+    collection: Photos,
+    name: 'photos',
+    path: '/uploads/photos'
+});
+
+// Removes the file in database and in the store
+Photos.remove({_id: "1d5Fh6J4LMxPO"});
+```
+
 ## Setting MIME types (server)
 
 **NOTE: only available since v0.6.9**
