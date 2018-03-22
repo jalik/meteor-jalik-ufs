@@ -7,6 +7,8 @@ If you want to support this package and feel graceful for all the work, please s
 
 Also I'll be glad to receive donations, whatever you give it will be much appreciated.
 
+If you find this lib useful and would like to contribute to it's development or just thank me (the author), donations are welcome.
+
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=SS78MUMW8AH4N)
 
 ## Installation
@@ -881,7 +883,8 @@ Some helpers are available by default to help you work with files inside templat
 
 ## Changelog
 
-### Version 0.7.4_2
+### Version 0.7.5
+- Fixes `UploadFS.config.https` not being used (since `v0.7.3`)
 - Calls store's `onFinishUpload((file) => {})` method before updating the file, so you can modify the file document (metadata like name, description...)
 
 ### Version 0.7.4_1

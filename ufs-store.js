@@ -462,7 +462,7 @@ export class Store {
      * @return {string}
      */
     getURL(path) {
-        const rootUrl = Meteor.absoluteUrl().replace(/\/+$/, '');
+        const rootUrl = Meteor.absoluteUrl({secure: UploadFS.config.https}).replace(/\/+$/, '');
         const storeName = this.getName();
         path = String(path).replace(/\/$/, '').trim();
         return encodeURI(`${rootUrl}/${UploadFS.config.storesPath}/${storeName}/${path}`);
