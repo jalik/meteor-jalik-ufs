@@ -1,5 +1,9 @@
 # UploadFS
 
+**WARNING: This package will not receive any new features, only bug fixing when possible. The reason is that the Meteor package system is kind of obsolete now. I (the author of the package) plan to release a package on NPM that would work with other frameworks than Meteor, so it will be a full rewriting of UploadFS but with a completely different name. Thank you for your comprehension.** 
+
+
+
 UploadFS is a package for the Meteor framework that aims to make file uploading easy, fast and configurable.
 Some important features are supported like the ability to **start, stop or even abort a transfer**, securing file access, transforming files on writing or reading...
 
