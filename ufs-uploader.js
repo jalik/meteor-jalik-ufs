@@ -349,11 +349,6 @@ export class Uploader {
                         }
                     }
 
-                    // Limit to max chunk size
-                    if (self.maxChunkSize > 0 && chunkSize > self.maxChunkSize) {
-                        chunkSize = self.maxChunkSize;
-                    }
-
                     // Reduce chunk size to fit total
                     if (offset + chunkSize > total) {
                         chunkSize = total - offset;
