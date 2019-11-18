@@ -1,11 +1,17 @@
 # UploadFS
 
+**WARNING: This package will not receive any new features, only bug fixing when possible. The reason is that the Meteor package system is kind of obsolete now. I (the author of the package) plan to release a package on NPM that would work with other frameworks than Meteor, so it will be a full rewriting of UploadFS but with a completely different name. Thank you for your comprehension.** 
+
+
+
 UploadFS is a package for the Meteor framework that aims to make file uploading easy, fast and configurable.
 Some important features are supported like the ability to **start, stop or even abort a transfer**, securing file access, transforming files on writing or reading...
 
 If you want to support this package and feel graceful for all the work, please share this package with the community or feel free to send me pull requests if you want to contribute.
 
 Also I'll be glad to receive donations, whatever you give it will be much appreciated.
+
+If you find this lib useful and would like to contribute to it's development or just thank me (the author), donations are welcome.
 
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=SS78MUMW8AH4N)
 
@@ -774,6 +780,27 @@ const PhotoStore = new UploadFS.Store.Local({
 });
 ```
 
+### Removing files
+
+To remove a file, simply delete it from the collection (database) and the physical file will be automatically removed from the store wherever it is (in the cloud, on the filesystem, in database...) :
+
+```js
+import {LocalStore} from 'meteor/jalik:ufs-local';
+import {Mongo} from 'meteor/mongo';
+import {UploadFS} from 'meteor/jalik:ufs';
+
+const Photos = new Mongo.Collection('photos');
+
+const PhotoStore = new LocalStore({
+    collection: Photos,
+    name: 'photos',
+    path: '/uploads/photos'
+});
+
+// Removes the file in database and in the store
+Photos.remove({_id: "1d5Fh6J4LMxPO"});
+```
+
 ## Setting MIME types (server)
 
 **NOTE: only available since v0.6.9**
@@ -860,7 +887,8 @@ Some helpers are available by default to help you work with files inside templat
 
 ## Changelog
 
-### Version 0.7.4_2
+### Version 0.7.5
+- Fixes `UploadFS.config.https` not being used (since `v0.7.3`)
 - Calls store's `onFinishUpload((file) => {})` method before updating the file, so you can modify the file document (metadata like name, description...)
 
 ### Version 0.7.4_1
