@@ -237,19 +237,16 @@ export class Store {
              * @param callback
              */
             self.write = function (rs, fileId, callback) {
-                let file = self.getCollection().findOne({_id: fileId});
-                let ws = self.getWriteStream(fileId, file);
+                const file = self.getCollection().findOne({_id: fileId});
 
-                let errorHandler = Meteor.bindEnvironment(function (err) {
-                    self.getCollection().remove({_id: fileId});
+                const errorHandler = Meteor.bindEnvironment(function (err) {
                     self.onWriteError.call(self, err, fileId, file);
                     callback.call(self, err);
                 });
 
-                ws.on('error', errorHandler);
-                ws.on('finish', Meteor.bindEnvironment(function () {
+                const finishHandler = Meteor.bindEnvironment(function () {
                     let size = 0;
-                    let readStream = self.getReadStream(fileId, file);
+                    const readStream = self.getReadStream(fileId, file);
 
                     readStream.on('error', Meteor.bindEnvironment(function (error) {
                         callback.call(self, error, null);
@@ -301,7 +298,7 @@ export class Store {
                         // Copy file to other stores
                         if (self.options.copyTo instanceof Array) {
                             for (let i = 0; i < self.options.copyTo.length; i += 1) {
-                                let store = self.options.copyTo[i];
+                                const store = self.options.copyTo[i];
 
                                 if (!store.getFilter() || store.getFilter().isValid(file)) {
                                     self.copy(fileId, store);
@@ -309,10 +306,18 @@ export class Store {
                             }
                         }
                     }));
-                }));
+                });
 
-                // Execute transformation
-                self.transformWrite(rs, ws, fileId, file);
+                if (!file.originalId) {
+                  const ws = self.getWriteStream(fileId, file);
+                  ws.on('error', errorHandler);
+                  ws.on('finish', finishHandler);
+
+                  // Execute transformation
+                  self.transformWrite(rs, ws, fileId, file);
+                } else {
+                  self.createSymbolicLink(file.originalId, fileId, finishHandler, errorHandler);
+                }
             };
         }
 
@@ -475,6 +480,15 @@ export class Store {
      */
     getWriteStream(fileId, file) {
         throw new Error('getWriteStream is not implemented');
+    }
+
+    /**
+     Creates a symbolic link on the filesystem
+     * @param linkFileId - already existing file Id
+     * @param newFileId - new file Id linked to existing Id
+     */
+    createSymbolicLink(linkFileId, newFileId) {
+        throw new Error('createSymbolicLink is not implemented');
     }
 
     /**

@@ -46,5 +46,6 @@ Package.onUse(function (api) {
 });
 
 Npm.depends({
-    mkdirp: "0.3.5"
+    mkdirp: "0.3.5",
+    "spark-md5" : "3.0.0"
 });

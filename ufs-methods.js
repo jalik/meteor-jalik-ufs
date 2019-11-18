@@ -106,14 +106,16 @@ if (Meteor.isServer) {
                         fut.return(file);
                     }
                 }));
+
+                // catch will not work if fut.wait() is outside try/catch
+                return fut.wait();
             }
             catch (err) {
                 // If write failed, remove the file
                 store.getCollection().remove({_id: fileId});
                 // removeTempFile(); // todo remove temp file on error or try again ?
-                fut.throw(err);
+                throw new Meteor.Error('ufs: cannot upload file', err);
             }
-            return fut.wait();
         },
 
         /**

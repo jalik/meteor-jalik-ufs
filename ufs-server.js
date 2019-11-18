@@ -25,6 +25,7 @@
 import {_} from "meteor/underscore";
 import {Meteor} from "meteor/meteor";
 import {WebApp} from "meteor/webapp";
+import SparkMD5 from 'spark-md5';
 import {UploadFS} from "./ufs";
 
 
@@ -152,6 +153,13 @@ if (Meteor.isServer) {
                 return;
             }
 
+            //Check if duplicate
+            const unique = function (hash) {
+              const originalId = store.getCollection().findOne({ hash: hash, _id: { $ne: fileId }});
+              return originalId ? originalId._id : false;
+            }
+
+            let spark = new SparkMD5.ArrayBuffer();
             let tmpFile = UploadFS.getTempFilePath(fileId);
             let ws = fs.createWriteStream(tmpFile, {flags: 'a'});
             let fields = {uploading: true};
@@ -162,6 +170,7 @@ if (Meteor.isServer) {
 
             req.on('data', (chunk) => {
                 ws.write(chunk);
+                spark.append(chunk);
             });
             req.on('error', (err) => {
                 res.writeHead(500);
@@ -169,6 +178,8 @@ if (Meteor.isServer) {
             });
             req.on('end', Meteor.bindEnvironment(() => {
                 // Update completed state without triggering hooks
+                fields.hash = spark.end();
+                fields.originalId = unique(fields.hash);
                 store.getCollection().direct.update({_id: fileId}, {$set: fields});
                 ws.end();
             }));
