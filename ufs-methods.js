@@ -23,7 +23,6 @@
  *
  */
 
-import {_} from 'meteor/underscore';
 import {check} from 'meteor/check';
 import {Meteor} from 'meteor/meteor';
 import {UploadFS} from './ufs';
@@ -109,8 +108,7 @@ if (Meteor.isServer) {
 
                 // catch will not work if fut.wait() is outside try/catch
                 return fut.wait();
-            }
-            catch (err) {
+            } catch (err) {
                 // If write failed, remove the file
                 store.getCollection().remove({_id: fileId});
                 // removeTempFile(); // todo remove temp file on error or try again ?

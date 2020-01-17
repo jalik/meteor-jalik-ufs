@@ -22,7 +22,6 @@
  * SOFTWARE.
  *
  */
-import {_} from "meteor/underscore";
 import {Meteor} from "meteor/meteor";
 
 
@@ -35,7 +34,7 @@ export class Filter {
         const self = this;
 
         // Default options
-        options = _.extend({
+        options = Object.assign({
             contentTypes: null,
             extensions: null,
             minSize: 1,
@@ -62,9 +61,7 @@ export class Filter {
 
         // Public attributes
         self.options = options;
-        _.each([
-            'onCheck'
-        ], (method) => {
+        ['onCheck'].forEach((method) => {
             if (typeof options[method] === 'function') {
                 self[method] = options[method];
             }
@@ -87,7 +84,7 @@ export class Filter {
             throw new Meteor.Error('file-too-large', `File size is too large (max = ${this.getMaxSize()})`);
         }
         // Check extension
-        if (this.getExtensions() && !_.contains(this.getExtensions(), file.extension)) {
+        if (this.getExtensions() && !this.getExtensions().includes(file.extension)) {
             throw new Meteor.Error('invalid-file-extension', `File extension "${file.extension}" is not accepted`);
         }
         // Check content type
@@ -140,15 +137,15 @@ export class Filter {
      */
     isContentTypeInList(type, list) {
         if (typeof type === 'string' && list instanceof Array) {
-            if (_.contains(list, type)) {
+            if (list.includes(type)) {
                 return true;
             } else {
                 let wildCardGlob = '/*';
-                let wildcards = _.filter(list, (item) => {
+                let wildcards = list.filter((item) => {
                     return item.indexOf(wildCardGlob) > 0;
                 });
 
-                if (_.contains(wildcards, type.replace(/(\/.*)$/, wildCardGlob))) {
+                if (wildcards.includes(type.replace(/(\/.*)$/, wildCardGlob))) {
                     return true;
                 }
             }

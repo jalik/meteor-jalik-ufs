@@ -345,28 +345,6 @@ PhotoStore.copy(fileId, BackupStore, function(err, copyId, copyFile) {
 });
 ```
 
-All copies contain 2 fields that references the original file, `originalId` and `originalStore`.
-So if you want to display a thumbnail instead of the original file you could do like this :
-
-```html
-<template name="files">
-    {{#each files}}
-        <img src="{{thumb.url}}">
-    {{/each}}
-</template>
-```
-
-```js
-Template.files.helpers({
-    files: function() {
-        return Files.find();
-    },
-    thumb: function() {
-        return Thumbnails128.findOne({originalId: this._id});
-    }
-});
-```
-
 Or you can save the thumbnails URL into the original file, it's the recommended way to do it since it's embedded in the original file, you don't need to manage thumbnails subscriptions :
 
 ```js
@@ -615,20 +593,11 @@ store.write(stream, fileId, function(err, file) {
 
 When the store on the server is configured, you can upload files to it.
 
-Here is the template to upload one or more files :
-
-```html
-<template name="upload">
-    <button type="button" name="upload">Select files</button>
-</template>
-```
-
 And there the code to upload the selected files :
 
 ```js
 import {LocalStore} from 'meteor/jalik:ufs-local';
 import {Mongo} from 'meteor/mongo';
-import {Template} from 'meteor/templating';
 import {UploadFS} from 'meteor/jalik:ufs';
 
 const Photos = new Mongo.Collection('photos');
@@ -637,80 +606,6 @@ const PhotoStore = new LocalStore({
     collection: Photos,
     name: 'photos',
     path: '/uploads/photos'
-});
-
-Template.upload.events({
-    'click button[name=upload]'(ev) {
-        let self = this;
-
-        UploadFS.selectFiles(function (file) {
-            // Prepare the file to insert in database, note that we don't provide a URL,
-            // it will be set automatically by the uploader when file transfer is complete.
-            let photo = {
-                name: file.name,
-                size: file.size,
-                type: file.type,
-                customField1: 1337,
-                customField2: {
-                    a: 1,
-                    b: 2
-                }
-            };
-
-            // Create a new Uploader for this file
-            let uploader = new UploadFS.Uploader({
-                // This is where the uploader will save the file
-                // since v0.6.7, you can pass the store instance or the store name directly
-                store: PhotoStore || 'photos',
-                // Optimize speed transfer by increasing/decreasing chunk size automatically
-                adaptive: true,
-                // Define the upload capacity (if upload speed is 1MB/s, then it will try to maintain upload at 80%, so 800KB/s)
-                // (used only if adaptive = true)
-                capacity: 0.8, // 80%
-                // The size of each chunk sent to the server
-                chunkSize: 8 * 1024, // 8k
-                // The max chunk size (used only if adaptive = true)
-                maxChunkSize: 128 * 1024, // 128k
-                // This tells how many tries to do if an error occurs during upload
-                maxTries: 5,
-                // The File/Blob object containing the data
-                data: file,
-                // The document to save in the collection
-                file: photo,
-                // The error callback
-                onError(err, file) {
-                    console.error(err);
-                },
-                onAbort(file) {
-                    console.log(file.name + ' upload has been aborted');
-                },
-                onComplete(file) {
-                    console.log(file.name + ' has been uploaded');
-                },
-                onCreate(file) {
-                    console.log(file.name + ' has been created with ID ' + file._id);
-                },
-                onProgress(file, progress) {
-                    console.log(file.name + ' ' + (progress*100) + '% uploaded');
-                },
-                onStart(file) {
-                    console.log(file.name + ' started');
-                },
-                onStop(file) {
-                    console.log(file.name + ' stopped');
-                },
-            });
-
-            // Starts the upload
-            uploader.start();
-
-            // Stops the upload
-            uploader.stop();
-
-            // Abort the upload
-            uploader.abort();
-        });
-    }
 });
 ```
 
@@ -832,58 +727,6 @@ To display a file, simply use the `url` attribute for an absolute URL or the `pa
 
 You can upgrade existing documents to add the `path` attribute by calling the `UploadFS.addPathAttributeToFiles(where)`
 which will upgrade all collections linked to any UploadFS store, the `where` option is not required, default predicate is `{path: null}`.
-
-Here is the template to display a list of photos :
-
-```html
-<template name="photos">
-    <div>
-        {{#each photos}}
-            {{#if uploading}}
-                <img src="/images/spinner.gif" title="{{name}}">
-                <span>{{completed}}%</span>
-            {{else}}
-                <img src="{{url}}" title="{{name}}">
-            {{/if}}
-        {{/each}}
-    </div>
-</template>
-```
-
-And there the code to load the file :
-
-```js
-Template.photos.helpers({
-    completed: function() {
-        return Math.round(this.progress * 100);
-    },
-    photos: function() {
-        return Photos.find();
-    }
-});
-```
-
-## Using template helpers (Blaze)
-
-Some helpers are available by default to help you work with files inside templates.
-
-```html
-{{#if isApplication}}
-    <a href="{{url}}">Download</a>
-{{/if}}
-{{#if isAudio}}
-    <audio src="{{url}}" controls></audio>
-{{/if}}
-{{#if isImage}}
-    <img src="{{url}}">
-{{/if}}
-{{#if isText}}
-    <iframe src={{url}}></iframe>
-{{/if}}
-{{#if isVideo}}
-    <video src="{{url}}" controls></video>
-{{/if}}
-```
 
 ## Changelog
 

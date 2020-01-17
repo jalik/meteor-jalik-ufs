@@ -22,7 +22,6 @@
  * SOFTWARE.
  *
  */
-import {_} from "meteor/underscore";
 import {check} from "meteor/check";
 import {Meteor} from "meteor/meteor";
 import {Mongo} from "meteor/mongo";
@@ -41,7 +40,7 @@ export class Store {
         let self = this;
 
         // Default options
-        options = _.extend({
+        options = Object.assign({
             collection: null,
             filter: null,
             name: null,
@@ -100,14 +99,14 @@ export class Store {
         // Public attributes
         self.options = options;
         self.permissions = options.permissions;
-        _.each([
+        [
             'onCopyError',
             'onFinishUpload',
             'onRead',
             'onReadError',
             'onWriteError',
             'onValidate'
-        ], (method) => {
+        ].forEach((method) => {
             if (typeof options[method] === 'function') {
                 self[method] = options[method];
             }
@@ -165,7 +164,7 @@ export class Store {
                 }
 
                 // Prepare copy
-                let copy = _.omit(file, '_id', 'url');
+                let {_id, url, ...copy} = file;
                 copy.originalStore = self.getName();
                 copy.originalId = fileId;
 
@@ -309,14 +308,14 @@ export class Store {
                 });
 
                 if (!file.originalId) {
-                  const ws = self.getWriteStream(fileId, file);
-                  ws.on('error', errorHandler);
-                  ws.on('finish', finishHandler);
+                    const ws = self.getWriteStream(fileId, file);
+                    ws.on('error', errorHandler);
+                    ws.on('finish', finishHandler);
 
-                  // Execute transformation
-                  self.transformWrite(rs, ws, fileId, file);
+                    // Execute transformation
+                    self.transformWrite(rs, ws, fileId, file);
                 } else {
-                  self.createSymbolicLink(file.originalId, fileId, finishHandler, errorHandler);
+                    self.createSymbolicLink(file.originalId, fileId, finishHandler, errorHandler);
                 }
             };
         }

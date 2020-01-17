@@ -22,7 +22,6 @@
  * SOFTWARE.
  *
  */
-import {_} from "meteor/underscore";
 import {Meteor} from "meteor/meteor";
 import {WebApp} from "meteor/webapp";
 import SparkMD5 from 'spark-md5';
@@ -114,8 +113,7 @@ if (Meteor.isServer) {
             allowCORS();
 
             next();
-        }
-        else if (req.method === 'POST') {
+        } else if (req.method === 'POST') {
             // Get store
             let regExp = new RegExp('^\/([^\/\?]+)\/([^\/\?]+)$');
             let match = regExp.exec(path);
@@ -155,9 +153,9 @@ if (Meteor.isServer) {
 
             //Check if duplicate
             const unique = function (hash) {
-              const originalId = store.getCollection().findOne({ hash: hash, _id: { $ne: fileId }});
-              return originalId ? originalId._id : false;
-            }
+                const originalId = store.getCollection().findOne({hash: hash, _id: {$ne: fileId}});
+                return originalId ? originalId._id : false;
+            };
 
             let spark = new SparkMD5.ArrayBuffer();
             let tmpFile = UploadFS.getTempFilePath(fileId);
@@ -195,8 +193,7 @@ if (Meteor.isServer) {
                 res.writeHead(204, {"Content-Type": 'text/plain'});
                 res.end();
             });
-        }
-        else if (req.method === 'GET') {
+        } else if (req.method === 'GET') {
             // Get store, file Id and file name
             let regExp = new RegExp('^\/([^\/\?]+)\/([^\/\?]+)(?:\/([^\/\?]+))?$');
             let match = regExp.exec(path);
@@ -262,8 +259,7 @@ if (Meteor.isServer) {
                     // Add Last-Modified header
                     if (file.modifiedAt instanceof Date) {
                         headers['Last-Modified'] = file.modifiedAt.toUTCString();
-                    }
-                    else if (file.uploadedAt instanceof Date) {
+                    } else if (file.uploadedAt instanceof Date) {
                         headers['Last-Modified'] = file.uploadedAt.toUTCString();
                     }
 

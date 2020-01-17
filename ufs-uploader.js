@@ -23,7 +23,6 @@
  *
  */
 
-import {_} from 'meteor/underscore';
 import {Meteor} from 'meteor/meteor';
 import {Store} from './ufs-store';
 
@@ -37,7 +36,7 @@ export class Uploader {
         let self = this;
 
         // Set default options
-        options = _.extend({
+        options = Object.assign({
             adaptive: true,
             capacity: 0.9,
             chunkSize: 16 * 1024,
@@ -164,8 +163,7 @@ export class Uploader {
                 if (err) {
                     self.onError(err, file);
                     self.abort();
-                }
-                else if (uploadedFile) {
+                } else if (uploadedFile) {
                     uploading = false;
                     complete = true;
                     file = uploadedFile;
@@ -364,7 +362,7 @@ export class Uploader {
                         let xhr = new XMLHttpRequest();
                         xhr.onreadystatechange = function () {
                             if (xhr.readyState === 4) {
-                                if (_.contains([200, 201, 202, 204], xhr.status)) {
+                                if ([200, 201, 202, 204].includes(xhr.status)) {
                                     timeB = Date.now();
                                     offset += chunkSize;
                                     loaded += chunkSize;
@@ -379,8 +377,7 @@ export class Uploader {
                                     } else {
                                         Meteor.setTimeout(self.sendChunk, self.transferDelay);
                                     }
-                                }
-                                else if (!_.contains([402, 403, 404, 500], xhr.status)) {
+                                } else if (![402, 403, 404, 500].includes(xhr.status)) {
                                     // Retry until max tries is reach
                                     // But don't retry if these errors occur
                                     if (tries <= self.maxTries) {
@@ -390,8 +387,7 @@ export class Uploader {
                                     } else {
                                         self.abort();
                                     }
-                                }
-                                else {
+                                } else {
                                     self.abort();
                                 }
                             }
@@ -423,7 +419,7 @@ export class Uploader {
             if (!fileId) {
                 // Create the file document and get the token
                 // that allows the user to send chunks to the store.
-                Meteor.call('ufsCreate', _.extend({}, file), function (err, result) {
+                Meteor.call('ufsCreate', Object.assign({}, file), function (err, result) {
                     if (err) {
                         self.onError(err, file);
                     } else if (result) {

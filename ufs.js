@@ -22,9 +22,7 @@
  * SOFTWARE.
  *
  */
-import {_} from "meteor/underscore";
 import {Meteor} from "meteor/meteor";
-import {Mongo} from "meteor/mongo";
 import {MIME} from "./ufs-mime";
 import {Random} from "meteor/random";
 import {Tokens} from "./ufs-tokens";
@@ -54,7 +52,7 @@ export const UploadFS = {
      * @param where
      */
     addETagAttributeToFiles(where) {
-        _.each(this.getStores(), (store) => {
+        this.getStores().forEach((store) => {
             const files = store.getCollection();
 
             // By default update only files with no path set
@@ -78,7 +76,7 @@ export const UploadFS = {
      * @param where
      */
     addPathAttributeToFiles(where) {
-        _.each(this.getStores(), (store) => {
+        this.getStores().forEach((store) => {
             const files = store.getCollection();
 
             // By default update only files with no path set
@@ -160,8 +158,7 @@ export const UploadFS = {
     importFromURL(url, file, store, callback) {
         if (typeof store === 'string') {
             Meteor.call('ufsImportURL', url, file, store, callback);
-        }
-        else if (typeof store === 'object') {
+        } else if (typeof store === 'object') {
             store.importFromURL(url, file, callback);
         }
     },
@@ -172,7 +169,7 @@ export const UploadFS = {
      * @param event
      * @param callback
      */
-    readAsArrayBuffer (event, callback) {
+    readAsArrayBuffer(event, callback) {
         console.error('UploadFS.readAsArrayBuffer is deprecated, see https://github.com/jalik/jalik-ufs#uploading-from-a-file');
     },
 
@@ -221,13 +218,9 @@ export const UploadFS = {
         document.body.appendChild(div);
         // Trigger file selection
         input.click();
-    }
+    },
 };
 
-
-if (Meteor.isClient) {
-    require('./ufs-template-helpers');
-}
 if (Meteor.isServer) {
     require('./ufs-methods');
     require('./ufs-server');
@@ -251,8 +244,7 @@ if (Meteor.isServer) {
     if (typeof global !== 'undefined') {
         global['UploadFS'] = UploadFS;
     }
-}
-else if (Meteor.isClient) {
+} else if (Meteor.isClient) {
     // Expose the module globally
     if (typeof window !== 'undefined') {
         window.UploadFS = UploadFS;
