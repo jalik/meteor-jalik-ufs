@@ -22,208 +22,207 @@
  * SOFTWARE.
  *
  */
-import {Meteor} from "meteor/meteor";
-import {MIME} from "./ufs-mime";
-import {Random} from "meteor/random";
-import {Tokens} from "./ufs-tokens";
-import {Config} from "./ufs-config";
-import {Filter} from "./ufs-filter";
-import {Store} from "./ufs-store";
-import {StorePermissions} from "./ufs-store-permissions";
-import {Uploader} from "./ufs-uploader";
-
+import { Meteor } from 'meteor/meteor';
+import { Random } from 'meteor/random';
+import { Config } from './ufs-config';
+import { Filter } from './ufs-filter';
+import { MIME } from './ufs-mime';
+import { Store } from './ufs-store';
+import { StorePermissions } from './ufs-store-permissions';
+import { Tokens } from './ufs-tokens';
+import { Uploader } from './ufs-uploader';
 
 let stores = {};
 
 export const UploadFS = {
 
-    /**
-     * Contains all stores
-     */
-    store: {},
+  /**
+   * Contains all stores
+   */
+  store: {},
 
-    /**
-     * Collection of tokens
-     */
-    tokens: Tokens,
+  /**
+   * Collection of tokens
+   */
+  tokens: Tokens,
 
-    /**
-     * Adds the "etag" attribute to files
-     * @param where
-     */
-    addETagAttributeToFiles(where) {
-        this.getStores().forEach((store) => {
-            const files = store.getCollection();
+  /**
+   * Adds the "etag" attribute to files
+   * @param where
+   */
+  addETagAttributeToFiles(where) {
+    this.getStores().forEach((store) => {
+      const files = store.getCollection();
 
-            // By default update only files with no path set
-            files.find(where || {etag: null}, {fields: {_id: 1}}).forEach((file) => {
-                files.direct.update(file._id, {$set: {etag: this.generateEtag()}});
-            });
-        });
-    },
+      // By default update only files with no path set
+      files.find(where || { etag: null }, { fields: { _id: 1 } }).forEach((file) => {
+        files.direct.update(file._id, { $set: { etag: this.generateEtag() } });
+      });
+    });
+  },
 
-    /**
-     * Adds the MIME type for an extension
-     * @param extension
-     * @param mime
-     */
-    addMimeType(extension, mime) {
-        MIME[extension.toLowerCase()] = mime;
-    },
+  /**
+   * Adds the MIME type for an extension
+   * @param extension
+   * @param mime
+   */
+  addMimeType(extension, mime) {
+    MIME[extension.toLowerCase()] = mime;
+  },
 
-    /**
-     * Adds the "path" attribute to files
-     * @param where
-     */
-    addPathAttributeToFiles(where) {
-        this.getStores().forEach((store) => {
-            const files = store.getCollection();
+  /**
+   * Adds the "path" attribute to files
+   * @param where
+   */
+  addPathAttributeToFiles(where) {
+    this.getStores().forEach((store) => {
+      const files = store.getCollection();
 
-            // By default update only files with no path set
-            files.find(where || {path: null}, {fields: {_id: 1}}).forEach((file) => {
-                files.direct.update(file._id, {$set: {path: store.getFileRelativeURL(file._id)}});
-            });
-        });
-    },
+      // By default update only files with no path set
+      files.find(where || { path: null }, { fields: { _id: 1 } }).forEach((file) => {
+        files.direct.update(file._id, { $set: { path: store.getFileRelativeURL(file._id) } });
+      });
+    });
+  },
 
-    /**
-     * Registers the store
-     * @param store
-     */
-    addStore(store) {
-        if (!(store instanceof Store)) {
-            throw new TypeError(`ufs: store is not an instance of UploadFS.Store.`);
-        }
-        stores[store.getName()] = store;
-    },
+  /**
+   * Registers the store
+   * @param store
+   */
+  addStore(store) {
+    if (!(store instanceof Store)) {
+      throw new TypeError(`ufs: store is not an instance of UploadFS.Store.`);
+    }
+    stores[store.getName()] = store;
+  },
 
-    /**
-     * Generates a unique ETag
-     * @return {string}
-     */
-    generateEtag() {
-        return Random.id();
-    },
+  /**
+   * Generates a unique ETag
+   * @return {string}
+   */
+  generateEtag() {
+    return Random.id();
+  },
 
-    /**
-     * Returns the MIME type of the extension
-     * @param extension
-     * @returns {*}
-     */
-    getMimeType(extension) {
-        extension = extension.toLowerCase();
-        return MIME[extension];
-    },
+  /**
+   * Returns the MIME type of the extension
+   * @param extension
+   * @returns {*}
+   */
+  getMimeType(extension) {
+    extension = extension.toLowerCase();
+    return MIME[extension];
+  },
 
-    /**
-     * Returns all MIME types
-     */
-    getMimeTypes() {
-        return MIME;
-    },
+  /**
+   * Returns all MIME types
+   */
+  getMimeTypes() {
+    return MIME;
+  },
 
-    /**
-     * Returns the store by its name
-     * @param name
-     * @return {UploadFS.Store}
-     */
-    getStore(name) {
-        return stores[name];
-    },
+  /**
+   * Returns the store by its name
+   * @param name
+   * @return {UploadFS.Store}
+   */
+  getStore(name) {
+    return stores[name];
+  },
 
-    /**
-     * Returns all stores
-     * @return {object}
-     */
-    getStores() {
-        return stores;
-    },
+  /**
+   * Returns all stores
+   * @return {object}
+   */
+  getStores() {
+    return stores;
+  },
 
-    /**
-     * Returns the temporary file path
-     * @param fileId
-     * @return {string}
-     */
-    getTempFilePath(fileId) {
-        return `${this.config.tmpDir}/${fileId}`;
-    },
+  /**
+   * Returns the temporary file path
+   * @param fileId
+   * @return {string}
+   */
+  getTempFilePath(fileId) {
+    return `${this.config.tmpDir}/${fileId}`;
+  },
 
-    /**
-     * Imports a file from a URL
-     * @param url
-     * @param file
-     * @param store
-     * @param callback
-     */
-    importFromURL(url, file, store, callback) {
-        if (typeof store === 'string') {
-            Meteor.call('ufsImportURL', url, file, store, callback);
-        } else if (typeof store === 'object') {
-            store.importFromURL(url, file, callback);
-        }
-    },
+  /**
+   * Imports a file from a URL
+   * @param url
+   * @param file
+   * @param store
+   * @param callback
+   */
+  importFromURL(url, file, store, callback) {
+    if (typeof store === 'string') {
+      Meteor.call('ufsImportURL', url, file, store, callback);
+    } else if (typeof store === 'object') {
+      store.importFromURL(url, file, callback);
+    }
+  },
 
-    /**
-     * Returns file and data as ArrayBuffer for each files in the event
-     * @deprecated
-     * @param event
-     * @param callback
-     */
-    readAsArrayBuffer(event, callback) {
-        console.error('UploadFS.readAsArrayBuffer is deprecated, see https://github.com/jalik/jalik-ufs#uploading-from-a-file');
-    },
+  /**
+   * Returns file and data as ArrayBuffer for each files in the event
+   * @deprecated
+   * @param event
+   * @param callback
+   */
+  readAsArrayBuffer(event, callback) {
+    console.error('UploadFS.readAsArrayBuffer is deprecated, see https://github.com/jalik/jalik-ufs#uploading-from-a-file');
+  },
 
-    /**
-     * Opens a dialog to select a single file
-     * @param callback
-     */
-    selectFile(callback) {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.multiple = false;
-        input.onchange = (ev) => {
-            let files = ev.target.files;
-            callback.call(UploadFS, files[0]);
-        };
-        // Fix for iOS/Safari
-        const div = document.createElement('div');
-        div.className = 'ufs-file-selector';
-        div.style = 'display:none; height:0; width:0; overflow: hidden;';
-        div.appendChild(input);
-        document.body.appendChild(div);
-        // Trigger file selection
-        input.click();
-    },
+  /**
+   * Opens a dialog to select a single file
+   * @param callback
+   */
+  selectFile(callback) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = false;
+    input.onchange = (ev) => {
+      let files = ev.target.files;
+      callback.call(UploadFS, files[0]);
+    };
+    // Fix for iOS/Safari
+    const div = document.createElement('div');
+    div.className = 'ufs-file-selector';
+    div.style = 'display:none; height:0; width:0; overflow: hidden;';
+    div.appendChild(input);
+    document.body.appendChild(div);
+    // Trigger file selection
+    input.click();
+  },
 
-    /**
-     * Opens a dialog to select multiple files
-     * @param callback
-     */
-    selectFiles(callback) {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.multiple = true;
-        input.onchange = (ev) => {
-            const files = ev.target.files;
+  /**
+   * Opens a dialog to select multiple files
+   * @param callback
+   */
+  selectFiles(callback) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.onchange = (ev) => {
+      const files = ev.target.files;
 
-            for (let i = 0; i < files.length; i += 1) {
-                callback.call(UploadFS, files[i]);
-            }
-        };
-        // Fix for iOS/Safari
-        const div = document.createElement('div');
-        div.className = 'ufs-file-selector';
-        div.style = 'display:none; height:0; width:0; overflow: hidden;';
-        div.appendChild(input);
-        document.body.appendChild(div);
-        // Trigger file selection
-        input.click();
-    },
+      for (let i = 0; i < files.length; i += 1) {
+        callback.call(UploadFS, files[i]);
+      }
+    };
+    // Fix for iOS/Safari
+    const div = document.createElement('div');
+    div.className = 'ufs-file-selector';
+    div.style = 'display:none; height:0; width:0; overflow: hidden;';
+    div.appendChild(input);
+    document.body.appendChild(div);
+    // Trigger file selection
+    input.click();
+  },
 };
 
 if (Meteor.isServer) {
-    require('./ufs-methods');
-    require('./ufs-server');
+  require('./ufs-methods');
+  require('./ufs-server');
 }
 
 /**
@@ -240,13 +239,13 @@ UploadFS.StorePermissions = StorePermissions;
 UploadFS.Uploader = Uploader;
 
 if (Meteor.isServer) {
-    // Expose the module globally
-    if (typeof global !== 'undefined') {
-        global['UploadFS'] = UploadFS;
-    }
+  // Expose the module globally
+  if (typeof global !== 'undefined') {
+    global['UploadFS'] = UploadFS;
+  }
 } else if (Meteor.isClient) {
-    // Expose the module globally
-    if (typeof window !== 'undefined') {
-        window.UploadFS = UploadFS;
-    }
+  // Expose the module globally
+  if (typeof window !== 'undefined') {
+    window.UploadFS = UploadFS;
+  }
 }

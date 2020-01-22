@@ -23,84 +23,83 @@
  *
  */
 
-
 /**
  * Store permissions
  */
 export class StorePermissions {
 
-    constructor(options) {
-        // Default options
-        options = Object.assign({
-            insert: null,
-            remove: null,
-            update: null
-        }, options);
+  constructor(options) {
+    // Default options
+    options = Object.assign({
+      insert: null,
+      remove: null,
+      update: null,
+    }, options);
 
-        // Check options
-        if (options.insert && typeof options.insert !== 'function') {
-            throw new TypeError("StorePermissions: insert is not a function");
-        }
-        if (options.remove && typeof options.remove !== 'function') {
-            throw new TypeError("StorePermissions: remove is not a function");
-        }
-        if (options.update && typeof options.update !== 'function') {
-            throw new TypeError("StorePermissions: update is not a function");
-        }
-
-        // Public attributes
-        this.actions = {
-            insert: options.insert,
-            remove: options.remove,
-            update: options.update,
-        };
+    // Check options
+    if (options.insert && typeof options.insert !== 'function') {
+      throw new TypeError('StorePermissions: insert is not a function');
+    }
+    if (options.remove && typeof options.remove !== 'function') {
+      throw new TypeError('StorePermissions: remove is not a function');
+    }
+    if (options.update && typeof options.update !== 'function') {
+      throw new TypeError('StorePermissions: update is not a function');
     }
 
-    /**
-     * Checks the permission for the action
-     * @param action
-     * @param userId
-     * @param file
-     * @param fields
-     * @param modifiers
-     * @return {*}
-     */
-    check(action, userId, file, fields, modifiers) {
-        if (typeof this.actions[action] === 'function') {
-            return this.actions[action](userId, file, fields, modifiers);
-        }
-        return true; // by default allow all
-    }
+    // Public attributes
+    this.actions = {
+      insert: options.insert,
+      remove: options.remove,
+      update: options.update,
+    };
+  }
 
-    /**
-     * Checks the insert permission
-     * @param userId
-     * @param file
-     * @returns {*}
-     */
-    checkInsert(userId, file) {
-        return this.check('insert', userId, file);
+  /**
+   * Checks the permission for the action
+   * @param action
+   * @param userId
+   * @param file
+   * @param fields
+   * @param modifiers
+   * @return {*}
+   */
+  check(action, userId, file, fields, modifiers) {
+    if (typeof this.actions[action] === 'function') {
+      return this.actions[action](userId, file, fields, modifiers);
     }
+    return true; // by default allow all
+  }
 
-    /**
-     * Checks the remove permission
-     * @param userId
-     * @param file
-     * @returns {*}
-     */
-    checkRemove(userId, file) {
-        return this.check('remove', userId, file);
-    }
+  /**
+   * Checks the insert permission
+   * @param userId
+   * @param file
+   * @returns {*}
+   */
+  checkInsert(userId, file) {
+    return this.check('insert', userId, file);
+  }
 
-    /**
-     * Checks the update permission
-     * @param userId
-     * @param file
-     * @param fields
-     * @param modifiers
-     * @returns {*}
-     */
-    checkUpdate(userId, file, fields, modifiers) {
-        return this.check('update', userId, file, fields, modifiers);
-    }
+  /**
+   * Checks the remove permission
+   * @param userId
+   * @param file
+   * @returns {*}
+   */
+  checkRemove(userId, file) {
+    return this.check('remove', userId, file);
+  }
+
+  /**
+   * Checks the update permission
+   * @param userId
+   * @param file
+   * @param fields
+   * @param modifiers
+   * @returns {*}
+   */
+  checkUpdate(userId, file, fields, modifiers) {
+    return this.check('update', userId, file, fields, modifiers);
+  }
 }

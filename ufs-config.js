@@ -23,92 +23,91 @@
  *
  */
 
-import {StorePermissions} from './ufs-store-permissions';
-
+import { StorePermissions } from './ufs-store-permissions';
 
 /**
  * UploadFS configuration
  */
 export class Config {
 
-    constructor(options) {
-        // Default options
-        options = Object.assign({
-            defaultStorePermissions: null,
-            https: false,
-            simulateReadDelay: 0,
-            simulateUploadSpeed: 0,
-            simulateWriteDelay: 0,
-            storesPath: 'ufs',
-            tmpDir: '/tmp/ufs',
-            tmpDirPermissions: '0700'
-        }, options);
+  constructor(options) {
+    // Default options
+    options = Object.assign({
+      defaultStorePermissions: null,
+      https: false,
+      simulateReadDelay: 0,
+      simulateUploadSpeed: 0,
+      simulateWriteDelay: 0,
+      storesPath: 'ufs',
+      tmpDir: '/tmp/ufs',
+      tmpDirPermissions: '0700',
+    }, options);
 
-        // Check options
-        if (options.defaultStorePermissions && !(options.defaultStorePermissions instanceof StorePermissions)) {
-            throw new TypeError('Config: defaultStorePermissions is not an instance of StorePermissions');
-        }
-        if (typeof options.https !== 'boolean') {
-            throw new TypeError('Config: https is not a function');
-        }
-        if (typeof options.simulateReadDelay !== 'number') {
-            throw new TypeError('Config: simulateReadDelay is not a number');
-        }
-        if (typeof options.simulateUploadSpeed !== 'number') {
-            throw new TypeError('Config: simulateUploadSpeed is not a number');
-        }
-        if (typeof options.simulateWriteDelay !== 'number') {
-            throw new TypeError('Config: simulateWriteDelay is not a number');
-        }
-        if (typeof options.storesPath !== 'string') {
-            throw new TypeError('Config: storesPath is not a string');
-        }
-        if (typeof options.tmpDir !== 'string') {
-            throw new TypeError('Config: tmpDir is not a string');
-        }
-        if (typeof options.tmpDirPermissions !== 'string') {
-            throw new TypeError('Config: tmpDirPermissions is not a string');
-        }
-
-        /**
-         * Default store permissions
-         * @type {UploadFS.StorePermissions}
-         */
-        this.defaultStorePermissions = options.defaultStorePermissions;
-        /**
-         * Use or not secured protocol in URLS
-         * @type {boolean}
-         */
-        this.https = options.https;
-        /**
-         * The simulation read delay
-         * @type {Number}
-         */
-        this.simulateReadDelay = parseInt(options.simulateReadDelay);
-        /**
-         * The simulation upload speed
-         * @type {Number}
-         */
-        this.simulateUploadSpeed = parseInt(options.simulateUploadSpeed);
-        /**
-         * The simulation write delay
-         * @type {Number}
-         */
-        this.simulateWriteDelay = parseInt(options.simulateWriteDelay);
-        /**
-         * The URL root path of stores
-         * @type {string}
-         */
-        this.storesPath = options.storesPath;
-        /**
-         * The temporary directory of uploading files
-         * @type {string}
-         */
-        this.tmpDir = options.tmpDir;
-        /**
-         * The permissions of the temporary directory
-         * @type {string}
-         */
-        this.tmpDirPermissions = options.tmpDirPermissions;
+    // Check options
+    if (options.defaultStorePermissions && !(options.defaultStorePermissions instanceof StorePermissions)) {
+      throw new TypeError('Config: defaultStorePermissions is not an instance of StorePermissions');
     }
+    if (typeof options.https !== 'boolean') {
+      throw new TypeError('Config: https is not a function');
+    }
+    if (typeof options.simulateReadDelay !== 'number') {
+      throw new TypeError('Config: simulateReadDelay is not a number');
+    }
+    if (typeof options.simulateUploadSpeed !== 'number') {
+      throw new TypeError('Config: simulateUploadSpeed is not a number');
+    }
+    if (typeof options.simulateWriteDelay !== 'number') {
+      throw new TypeError('Config: simulateWriteDelay is not a number');
+    }
+    if (typeof options.storesPath !== 'string') {
+      throw new TypeError('Config: storesPath is not a string');
+    }
+    if (typeof options.tmpDir !== 'string') {
+      throw new TypeError('Config: tmpDir is not a string');
+    }
+    if (typeof options.tmpDirPermissions !== 'string') {
+      throw new TypeError('Config: tmpDirPermissions is not a string');
+    }
+
+    /**
+     * Default store permissions
+     * @type {UploadFS.StorePermissions}
+     */
+    this.defaultStorePermissions = options.defaultStorePermissions;
+    /**
+     * Use or not secured protocol in URLS
+     * @type {boolean}
+     */
+    this.https = options.https;
+    /**
+     * The simulation read delay
+     * @type {Number}
+     */
+    this.simulateReadDelay = parseInt(options.simulateReadDelay);
+    /**
+     * The simulation upload speed
+     * @type {Number}
+     */
+    this.simulateUploadSpeed = parseInt(options.simulateUploadSpeed);
+    /**
+     * The simulation write delay
+     * @type {Number}
+     */
+    this.simulateWriteDelay = parseInt(options.simulateWriteDelay);
+    /**
+     * The URL root path of stores
+     * @type {string}
+     */
+    this.storesPath = options.storesPath;
+    /**
+     * The temporary directory of uploading files
+     * @type {string}
+     */
+    this.tmpDir = options.tmpDir;
+    /**
+     * The permissions of the temporary directory
+     * @type {string}
+     */
+    this.tmpDirPermissions = options.tmpDirPermissions;
+  }
 }

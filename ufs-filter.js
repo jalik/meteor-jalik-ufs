@@ -22,175 +22,174 @@
  * SOFTWARE.
  *
  */
-import {Meteor} from "meteor/meteor";
-
+import { Meteor } from 'meteor/meteor';
 
 /**
  * File filter
  */
 export class Filter {
 
-    constructor(options) {
-        const self = this;
+  constructor(options) {
+    const self = this;
 
-        // Default options
-        options = Object.assign({
-            contentTypes: null,
-            extensions: null,
-            minSize: 1,
-            maxSize: 0,
-            invalidFileError: () => new Meteor.Error('invalid-file', "File is not valid"),
-            fileTooSmallError: (fileSize, minFileSize) => new Meteor.Error('file-too-small', `File size (size = ${fileSize}) is too small (min = ${minFileSize})`),
-            fileTooLargeError: (fileSize, maxFileSize) => new Meteor.Error('file-too-large', `File size (size = ${fileSize}) is too large (max = ${maxFileSize})`),
-            invalidFileExtension: (fileExtension, allowedExtensions) => new Meteor.Error('invalid-file-extension', `File extension "${fileExtension}" is not accepted (${allowedExtensions})`),
-            invalidFileType: (fileType, allowedContentTypes) => new Meteor.Error('invalid-file-type', `File type "${fileType}" is not accepted (${allowedContentTypes})`),
-            onCheck: this.onCheck
-        }, options);
+    // Default options
+    options = Object.assign({
+      contentTypes: null,
+      extensions: null,
+      minSize: 1,
+      maxSize: 0,
+      invalidFileError: () => new Meteor.Error('invalid-file', 'File is not valid'),
+      fileTooSmallError: (fileSize, minFileSize) => new Meteor.Error('file-too-small', `File size (size = ${fileSize}) is too small (min = ${minFileSize})`),
+      fileTooLargeError: (fileSize, maxFileSize) => new Meteor.Error('file-too-large', `File size (size = ${fileSize}) is too large (max = ${maxFileSize})`),
+      invalidFileExtension: (fileExtension, allowedExtensions) => new Meteor.Error('invalid-file-extension', `File extension "${fileExtension}" is not accepted (${allowedExtensions})`),
+      invalidFileType: (fileType, allowedContentTypes) => new Meteor.Error('invalid-file-type', `File type "${fileType}" is not accepted (${allowedContentTypes})`),
+      onCheck: this.onCheck,
+    }, options);
 
-        // Check options
-        if (options.contentTypes && !(options.contentTypes instanceof Array)) {
-            throw new TypeError("Filter: contentTypes is not an Array");
-        }
-        if (options.extensions && !(options.extensions instanceof Array)) {
-            throw new TypeError("Filter: extensions is not an Array");
-        }
-        if (typeof options.minSize !== "number") {
-            throw new TypeError("Filter: minSize is not a number");
-        }
-        if (typeof options.maxSize !== "number") {
-            throw new TypeError("Filter: maxSize is not a number");
-        }
-        if (options.onCheck && typeof options.onCheck !== "function") {
-            throw new TypeError("Filter: onCheck is not a function");
-        }
-
-        // Public attributes
-        self.options = options;
-        ['onCheck'].forEach((method) => {
-            if (typeof options[method] === 'function') {
-                self[method] = options[method];
-            }
-        });
+    // Check options
+    if (options.contentTypes && !(options.contentTypes instanceof Array)) {
+      throw new TypeError('Filter: contentTypes is not an Array');
+    }
+    if (options.extensions && !(options.extensions instanceof Array)) {
+      throw new TypeError('Filter: extensions is not an Array');
+    }
+    if (typeof options.minSize !== 'number') {
+      throw new TypeError('Filter: minSize is not a number');
+    }
+    if (typeof options.maxSize !== 'number') {
+      throw new TypeError('Filter: maxSize is not a number');
+    }
+    if (options.onCheck && typeof options.onCheck !== 'function') {
+      throw new TypeError('Filter: onCheck is not a function');
     }
 
-    /**
-     * Checks the file
-     * @param file
-     */
-    check(file) {
-        let error = null;
-        if (typeof file !== "object" || !file) {
-            error = this.options.invalidFileError();
-        }
-        // Check size
-        let fileSize = file.size;
-        let minSize = this.getMinSize();
-        if (fileSize <= 0 || fileSize < minSize) {
-            error = this.options.fileTooSmallError(fileSize, minSize);
-        }
-        let maxSize = this.getMaxSize();
-        if (maxSize > 0 && fileSize > maxSize) {
-            error = this.options.fileTooLargeError(fileSize, maxSize);
-        }
-        // Check extension
-        let allowedExtensions = this.getExtensions();
-        let fileExtension = file.extension;
-        if (allowedExtensions && !allowedExtensions.includes(fileExtension)) {
-            error = this.options.invalidFileExtension(fileExtension, allowedExtensions)
-        }
-        // Check content type
-        let allowedContentTypes = this.getContentTypes();
-        let fileTypes = file.type;
-        if (allowedContentTypes && !this.isContentTypeInList(fileTypes, allowedContentTypes)) {
-            error = this.options.invalidFileType(fileTypes, allowedContentTypes)
-        }
-        // Apply custom check
-        if (typeof this.onCheck === 'function' && !this.onCheck(file)) {
-            error = new Meteor.Error('invalid-file', "File does not match filter");
-        }
+    // Public attributes
+    self.options = options;
+    ['onCheck'].forEach((method) => {
+      if (typeof options[method] === 'function') {
+        self[method] = options[method];
+      }
+    });
+  }
 
-        if (error) {
-            throw error;
-        }
+  /**
+   * Checks the file
+   * @param file
+   */
+  check(file) {
+    let error = null;
+    if (typeof file !== 'object' || !file) {
+      error = this.options.invalidFileError();
+    }
+    // Check size
+    let fileSize = file.size;
+    let minSize = this.getMinSize();
+    if (fileSize <= 0 || fileSize < minSize) {
+      error = this.options.fileTooSmallError(fileSize, minSize);
+    }
+    let maxSize = this.getMaxSize();
+    if (maxSize > 0 && fileSize > maxSize) {
+      error = this.options.fileTooLargeError(fileSize, maxSize);
+    }
+    // Check extension
+    let allowedExtensions = this.getExtensions();
+    let fileExtension = file.extension;
+    if (allowedExtensions && !allowedExtensions.includes(fileExtension)) {
+      error = this.options.invalidFileExtension(fileExtension, allowedExtensions);
+    }
+    // Check content type
+    let allowedContentTypes = this.getContentTypes();
+    let fileTypes = file.type;
+    if (allowedContentTypes && !this.isContentTypeInList(fileTypes, allowedContentTypes)) {
+      error = this.options.invalidFileType(fileTypes, allowedContentTypes);
+    }
+    // Apply custom check
+    if (typeof this.onCheck === 'function' && !this.onCheck(file)) {
+      error = new Meteor.Error('invalid-file', 'File does not match filter');
     }
 
-    /**
-     * Returns the allowed content types
-     * @return {Array}
-     */
-    getContentTypes() {
-        return this.options.contentTypes;
+    if (error) {
+      throw error;
     }
+  }
 
-    /**
-     * Returns the allowed extensions
-     * @return {Array}
-     */
-    getExtensions() {
-        return this.options.extensions;
-    }
+  /**
+   * Returns the allowed content types
+   * @return {Array}
+   */
+  getContentTypes() {
+    return this.options.contentTypes;
+  }
 
-    /**
-     * Returns the maximum file size
-     * @return {Number}
-     */
-    getMaxSize() {
-        return this.options.maxSize;
-    }
+  /**
+   * Returns the allowed extensions
+   * @return {Array}
+   */
+  getExtensions() {
+    return this.options.extensions;
+  }
 
-    /**
-     * Returns the minimum file size
-     * @return {Number}
-     */
-    getMinSize() {
-        return this.options.minSize;
-    }
+  /**
+   * Returns the maximum file size
+   * @return {Number}
+   */
+  getMaxSize() {
+    return this.options.maxSize;
+  }
 
-    /**
-     * Checks if content type is in the given list
-     * @param type
-     * @param list
-     * @return {boolean}
-     */
-    isContentTypeInList(type, list) {
-        if (typeof type === 'string' && list instanceof Array) {
-            if (list.includes(type)) {
-                return true;
-            } else {
-                let wildCardGlob = '/*';
-                let wildcards = list.filter((item) => {
-                    return item.indexOf(wildCardGlob) > 0;
-                });
+  /**
+   * Returns the minimum file size
+   * @return {Number}
+   */
+  getMinSize() {
+    return this.options.minSize;
+  }
 
-                if (wildcards.includes(type.replace(/(\/.*)$/, wildCardGlob))) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Checks if the file matches filter
-     * @param file
-     * @return {boolean}
-     */
-    isValid(file) {
-        let result = true;
-        try {
-            this.check(file);
-        } catch (err) {
-            result = false;
-        }
-        return result;
-    }
-
-    /**
-     * Executes custom checks
-     * @param file
-     * @return {boolean}
-     */
-    onCheck(file) {
+  /**
+   * Checks if content type is in the given list
+   * @param type
+   * @param list
+   * @return {boolean}
+   */
+  isContentTypeInList(type, list) {
+    if (typeof type === 'string' && list instanceof Array) {
+      if (list.includes(type)) {
         return true;
+      } else {
+        let wildCardGlob = '/*';
+        let wildcards = list.filter((item) => {
+          return item.indexOf(wildCardGlob) > 0;
+        });
+
+        if (wildcards.includes(type.replace(/(\/.*)$/, wildCardGlob))) {
+          return true;
+        }
+      }
     }
+    return false;
+  }
+
+  /**
+   * Checks if the file matches filter
+   * @param file
+   * @return {boolean}
+   */
+  isValid(file) {
+    let result = true;
+    try {
+      this.check(file);
+    } catch (err) {
+      result = false;
+    }
+    return result;
+  }
+
+  /**
+   * Executes custom checks
+   * @param file
+   * @return {boolean}
+   */
+  onCheck(file) {
+    return true;
+  }
 }

@@ -23,7 +23,7 @@
  *
  */
 
-import {Mongo} from 'meteor/mongo';
+import { Mongo } from 'meteor/mongo';
 
 /**
  * Collection of upload tokens
