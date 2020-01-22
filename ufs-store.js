@@ -307,16 +307,12 @@ export class Store {
                     }));
                 });
 
-                if (!file.originalId) {
-                    const ws = self.getWriteStream(fileId, file);
-                    ws.on('error', errorHandler);
-                    ws.on('finish', finishHandler);
+                const ws = self.getWriteStream(fileId, file);
+                ws.on('error', errorHandler);
+                ws.on('finish', finishHandler);
 
-                    // Execute transformation
-                    self.transformWrite(rs, ws, fileId, file);
-                } else {
-                    self.createSymbolicLink(file.originalId, fileId, finishHandler, errorHandler);
-                }
+                // Execute transformation
+                self.transformWrite(rs, ws, fileId, file);
             };
         }
 
@@ -479,15 +475,6 @@ export class Store {
      */
     getWriteStream(fileId, file) {
         throw new Error('getWriteStream is not implemented');
-    }
-
-    /**
-     Creates a symbolic link on the filesystem
-     * @param linkFileId - already existing file Id
-     * @param newFileId - new file Id linked to existing Id
-     */
-    createSymbolicLink(linkFileId, newFileId) {
-        throw new Error('createSymbolicLink is not implemented');
     }
 
     /**
