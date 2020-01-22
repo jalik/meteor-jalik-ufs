@@ -37,7 +37,7 @@ Package.onUse(function (api) {
   api.versionsFrom('1.9');
   api.use('check');
   api.use('ecmascript');
-  api.use('matb33:collection-hooks');
+  api.use('matb33:collection-hooks@0.9.1');
   api.use('mongo');
   api.use('webapp', 'server');
   api.mainModule('ufs.js');
