@@ -23,8 +23,6 @@
  *
  */
 
-import {_} from 'meteor/underscore';
-import {Meteor} from 'meteor/meteor';
 import {StorePermissions} from './ufs-store-permissions';
 
 
@@ -35,7 +33,7 @@ export class Config {
 
     constructor(options) {
         // Default options
-        options = _.extend({
+        options = Object.assign({
             defaultStorePermissions: null,
             https: false,
             simulateReadDelay: 0,

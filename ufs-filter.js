@@ -22,7 +22,6 @@
  * SOFTWARE.
  *
  */
-import {_} from "meteor/underscore";
 import {Meteor} from "meteor/meteor";
 
 
@@ -35,11 +34,16 @@ export class Filter {
         const self = this;
 
         // Default options
-        options = _.extend({
+        options = Object.assign({
             contentTypes: null,
             extensions: null,
             minSize: 1,
             maxSize: 0,
+            invalidFileError: () => new Meteor.Error('invalid-file', "File is not valid"),
+            fileTooSmallError: (fileSize, minFileSize) => new Meteor.Error('file-too-small', `File size (size = ${fileSize}) is too small (min = ${minFileSize})`),
+            fileTooLargeError: (fileSize, maxFileSize) => new Meteor.Error('file-too-large', `File size (size = ${fileSize}) is too large (max = ${maxFileSize})`),
+            invalidFileExtension: (fileExtension, allowedExtensions) => new Meteor.Error('invalid-file-extension', `File extension "${fileExtension}" is not accepted (${allowedExtensions})`),
+            invalidFileType: (fileType, allowedContentTypes) => new Meteor.Error('invalid-file-type', `File type "${fileType}" is not accepted (${allowedContentTypes})`),
             onCheck: this.onCheck
         }, options);
 
@@ -62,9 +66,7 @@ export class Filter {
 
         // Public attributes
         self.options = options;
-        _.each([
-            'onCheck'
-        ], (method) => {
+        ['onCheck'].forEach((method) => {
             if (typeof options[method] === 'function') {
                 self[method] = options[method];
             }
@@ -76,27 +78,39 @@ export class Filter {
      * @param file
      */
     check(file) {
+        let error = null;
         if (typeof file !== "object" || !file) {
-            throw new Meteor.Error('invalid-file', "File is not valid");
+            error = this.options.invalidFileError();
         }
         // Check size
-        if (file.size <= 0 || file.size < this.getMinSize()) {
-            throw new Meteor.Error('file-too-small', `File size is too small (min = ${this.getMinSize()})`);
+        let fileSize = file.size;
+        let minSize = this.getMinSize();
+        if (fileSize <= 0 || fileSize < minSize) {
+            error = this.options.fileTooSmallError(fileSize, minSize);
         }
-        if (this.getMaxSize() > 0 && file.size > this.getMaxSize()) {
-            throw new Meteor.Error('file-too-large', `File size is too large (max = ${this.getMaxSize()})`);
+        let maxSize = this.getMaxSize();
+        if (maxSize > 0 && fileSize > maxSize) {
+            error = this.options.fileTooLargeError(fileSize, maxSize);
         }
         // Check extension
-        if (this.getExtensions() && !_.contains(this.getExtensions(), file.extension)) {
-            throw new Meteor.Error('invalid-file-extension', `File extension "${file.extension}" is not accepted`);
+        let allowedExtensions = this.getExtensions();
+        let fileExtension = file.extension;
+        if (allowedExtensions && !allowedExtensions.includes(fileExtension)) {
+            error = this.options.invalidFileExtension(fileExtension, allowedExtensions)
         }
         // Check content type
-        if (this.getContentTypes() && !this.isContentTypeInList(file.type, this.getContentTypes())) {
-            throw new Meteor.Error('invalid-file-type', `File type "${file.type}" is not accepted`);
+        let allowedContentTypes = this.getContentTypes();
+        let fileTypes = file.type;
+        if (allowedContentTypes && !this.isContentTypeInList(fileTypes, allowedContentTypes)) {
+            error = this.options.invalidFileType(fileTypes, allowedContentTypes)
         }
         // Apply custom check
         if (typeof this.onCheck === 'function' && !this.onCheck(file)) {
-            throw new Meteor.Error('invalid-file', "File does not match filter");
+            error = new Meteor.Error('invalid-file', "File does not match filter");
+        }
+
+        if (error) {
+            throw error;
         }
     }
 
@@ -140,15 +154,15 @@ export class Filter {
      */
     isContentTypeInList(type, list) {
         if (typeof type === 'string' && list instanceof Array) {
-            if (_.contains(list, type)) {
+            if (list.includes(type)) {
                 return true;
             } else {
                 let wildCardGlob = '/*';
-                let wildcards = _.filter(list, (item) => {
+                let wildcards = list.filter((item) => {
                     return item.indexOf(wildCardGlob) > 0;
                 });
 
-                if (_.contains(wildcards, type.replace(/(\/.*)$/, wildCardGlob))) {
+                if (wildcards.includes(type.replace(/(\/.*)$/, wildCardGlob))) {
                     return true;
                 }
             }
