@@ -730,6 +730,10 @@ which will upgrade all collections linked to any UploadFS store, the `where` opt
 
 ## Changelog
 
+### Version 1.0.0
+- Updates to Meteor 1.9
+- Removes Blaze template helpers
+
 ### Version 0.7.5
 - Fixes `UploadFS.config.https` not being used (since `v0.7.3`)
 - Calls store's `onFinishUpload((file) => {})` method before updating the file, so you can modify the file document (metadata like name, description...)
