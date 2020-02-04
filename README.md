@@ -730,6 +730,9 @@ which will upgrade all collections linked to any UploadFS store, the `where` opt
 
 ## Changelog
 
+### Version 1.0.1
+- Updates to matb33:collection-hooks@1.0.1
+
 ### Version 1.0.0
 - Updates to Meteor 1.9
 - Removes Blaze template helpers
