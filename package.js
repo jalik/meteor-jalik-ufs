@@ -37,6 +37,7 @@ Package.onUse(function (api) {
   api.versionsFrom('1.9');
   api.use('check');
   api.use('ecmascript');
+  api.use('underscore');
   api.use('matb33:collection-hooks@1.0.1');
   api.use('mongo');
   api.use('webapp', 'server');

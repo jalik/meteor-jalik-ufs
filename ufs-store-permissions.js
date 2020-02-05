@@ -23,6 +23,8 @@
  *
  */
 
+import { _ } from 'meteor/underscore';
+
 /**
  * Store permissions
  */
@@ -30,7 +32,7 @@ export class StorePermissions {
 
   constructor(options) {
     // Default options
-    options = Object.assign({
+    options = _.extend({
       insert: null,
       remove: null,
       update: null,

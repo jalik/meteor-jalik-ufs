@@ -24,6 +24,7 @@
  */
 
 import { Meteor } from 'meteor/meteor';
+import { _ } from 'meteor/underscore';
 import { Store } from './ufs-store';
 
 /**
@@ -35,7 +36,7 @@ export class Uploader {
     let self = this;
 
     // Set default options
-    options = Object.assign({
+    options = _.extend({
       adaptive: true,
       capacity: 0.9,
       chunkSize: 16 * 1024,
@@ -418,7 +419,7 @@ export class Uploader {
       if (!fileId) {
         // Create the file document and get the token
         // that allows the user to send chunks to the store.
-        Meteor.call('ufsCreate', Object.assign({}, file), function (err, result) {
+        Meteor.call('ufsCreate', _.extend({}, file), function (err, result) {
           if (err) {
             self.onError(err, file);
           } else if (result) {

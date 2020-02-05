@@ -23,6 +23,7 @@
  *
  */
 import { Meteor } from 'meteor/meteor';
+import { _ } from 'meteor/underscore';
 
 /**
  * File filter
@@ -33,7 +34,7 @@ export class Filter {
     const self = this;
 
     // Default options
-    options = Object.assign({
+    options = _.extend({
       contentTypes: null,
       extensions: null,
       minSize: 1,

@@ -25,6 +25,7 @@
 import { check } from 'meteor/check';
 import { Meteor } from 'meteor/meteor';
 import { Mongo } from 'meteor/mongo';
+import { _ } from 'meteor/underscore';
 import { UploadFS } from './ufs';
 import { Filter } from './ufs-filter';
 import { StorePermissions } from './ufs-store-permissions';
@@ -39,7 +40,7 @@ export class Store {
     let self = this;
 
     // Default options
-    options = Object.assign({
+    options = _.extend({
       collection: null,
       filter: null,
       name: null,

@@ -730,6 +730,9 @@ which will upgrade all collections linked to any UploadFS store, the `where` opt
 
 ## Changelog
 
+### Version 1.0.2
+- Fixes "Invalid file name" error on client upload when passing File Blob
+
 ### Version 1.0.1
 - Updates to matb33:collection-hooks@1.0.1
 
