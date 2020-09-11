@@ -72,10 +72,7 @@ if (Meteor.isServer) {
   // Listen HTTP requests to serve files
   WebApp.connectHandlers.use((req, res, next) => {
     // Quick check to see if request should be caught
-    if (
-      req.url.indexOf(UploadFS.config.storesPath) === -1 ||
-      /id=.*ufs/ig.test(req.url)
-      ) {
+    if (!req.url.includes(`/${UploadFS.config.storesPath}/`)) {
       next();
       return;
     }
