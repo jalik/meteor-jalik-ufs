@@ -24,8 +24,8 @@
  */
 
 Package.describe({
-  name: 'rocketchat:ufs',
-  version: '1.0.3',
+  name: 'jalik:ufs',
+  version: '1.0.2',
   author: 'karl.stein.pro@gmail.com',
   summary: 'Base package for UploadFS',
   homepage: 'https://github.com/jalik/jalik-ufs',
