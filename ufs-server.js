@@ -71,8 +71,16 @@ if (Meteor.isServer) {
 
   // Listen HTTP requests to serve files
   WebApp.connectHandlers.use((req, res, next) => {
-    // Quick check to see if request should be caught
-    if (!req.url.includes(`/${UploadFS.config.storesPath}/`)) {
+    const trimmedStoresPath = (UploadFS.config.storesPath || '')
+      // Ensure there is no slash at the beginning of the path
+      .replace(/^\/+/g, '')
+      // Ensure there is no slash at the end of the path
+      .replace(/\/+$/g, '');
+
+    // Quick check to see if request should be handled
+    if (typeof trimmedStoresPath !== 'string'
+      || trimmedStoresPath.length < 1
+      || !req.url.includes(`/${trimmedStoresPath}/`)) {
       next();
       return;
     }
