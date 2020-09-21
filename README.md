@@ -730,6 +730,9 @@ which will upgrade all collections linked to any UploadFS store, the `where` opt
 
 ## Changelog
 
+### Version 1.0.3
+- Ensures that UFS requests are handled correctly if `UploadFS.config.storesPath` contains slashes at the beginning or at the end (Fixed by FelipeParreira)
+
 ### Version 1.0.2
 - Fixes "Invalid file name" error on client upload when passing File Blob
 
