@@ -35,12 +35,12 @@ Package.describe({
 
 Package.onUse(function (api) {
   api.versionsFrom('2.6.1');
-  api.use('check');
-  api.use('ecmascript');
-  api.use('underscore');
+  api.use('check@1.0.7');
+  api.use('ecmascript@0.14.0');
+  api.use('underscore@1.0.10');
   api.use('matb33:collection-hooks@1.0.1');
-  api.use('mongo');
-  api.use('webapp', 'server');
+  api.use('mongo@1.8.0');
+  api.use('webapp@1.8.0', 'server');
   api.mainModule('ufs.js');
 });
 
