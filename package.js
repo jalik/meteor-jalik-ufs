@@ -34,7 +34,7 @@ Package.describe({
 });
 
 Package.onUse(function (api) {
-  api.versionsFrom('1.9');
+  api.versionsFrom('2.6.1');
   api.use('check');
   api.use('ecmascript');
   api.use('underscore');
